@@ -24,17 +24,6 @@ For your procurement system, the functional requirements should be:
 | FR-14 | The system shall generate alerts for significant supplier risks such as delivery delays, quality deterioration, unusual price increases, or capacity shortages. |
 | FR-15 | The system shall allow users to view the reasoning or factors contributing to an AI recommendation.                                                             |
 | FR-16 | The system shall maintain procurement analysis and supplier-performance records for future reference.                                                           |
-
-### Important distinction
-
-For example:
-
-**“System calculates supplier risk score” → Functional Requirement**
-
-**“Risk score must be calculated within 3 seconds” → Non-Functional Requirement**
-
-The first describes **what** the system does; the second describes **how well** it must do it.
-
 ---
 
 # 2. Non-Functional Requirements
@@ -54,19 +43,7 @@ The first describes **what** the system does; the second describes **how well** 
 | Usability       | Procurement users should be able to compare suppliers, understand risks, and access recommendations with minimal training.                                                                     |
 | Maintainability | Frontend, AI-agent workflows, business rules, and data-processing components should be modular so they can be modified independently.                                                          |
 | Compatibility   | The React/Vite frontend shall communicate with the backend/AI services through defined APIs and structured data formats such as JSON.                                                          |
-| Auditability    | Important procurement analyses and system-generated recommendations should be logged so that decisions can be reviewed later.                                                                  |
-
-### Avoid vague NFRs
-
-Do not write:
-
-> “The system should be fast.”
-
-Write:
-
-> “The system should return standard dashboard and supplier-comparison results within 3–5 seconds under normal load.”
-
-That makes the requirement **measurable and testable**.
+| Auditability    | Important procurement analyses and system-generated recommendations should be logged so that decisions can be reviewed later.                  
 
 ---
 
