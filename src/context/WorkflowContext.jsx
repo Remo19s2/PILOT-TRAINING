@@ -1402,6 +1402,7 @@ export const WorkflowProvider = ({ children }) => {
       ...quotationData,
       status: 'submitted',
       submittedAt: new Date().toISOString(),
+      quotationHistory: []
     }
     setQuotations(prev => [...prev, newQuotation])
     
@@ -1421,6 +1422,36 @@ export const WorkflowProvider = ({ children }) => {
     }
     
     return newQuotation
+  }
+
+  const reviseQuotation = (quotationId, revisedData) => {
+    const existingQuotation = quotations.find(q => q.id === quotationId)
+    if (!existingQuotation) return
+
+    const revisedQuotation = {
+      ...existingQuotation,
+      ...revisedData,
+      status: 'revised',
+      revisedAt: new Date().toISOString(),
+      previousPrice: existingQuotation.unitPrice,
+      quotationHistory: [
+        ...(existingQuotation.quotationHistory || []),
+        {
+          version: (existingQuotation.quotationHistory?.length || 0) + 1,
+          unitPrice: existingQuotation.unitPrice,
+          totalPrice: existingQuotation.totalPrice,
+          deliveryTime: existingQuotation.deliveryTime,
+          submittedAt: existingQuotation.submittedAt,
+          notes: existingQuotation.supplierNotes || ''
+        }
+      ]
+    }
+
+    setQuotations(prev =>
+      prev.map(q => q.id === quotationId ? revisedQuotation : q)
+    )
+
+    return revisedQuotation
   }
 
   const selectSupplier = (rfqId, quotationId) => {
@@ -1584,6 +1615,7 @@ export const WorkflowProvider = ({ children }) => {
     sendRFQ,
     viewRFQ,
     submitQuotation,
+    reviseQuotation,
     selectSupplier,
     approveRequest,
     rejectRequest,

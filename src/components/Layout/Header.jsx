@@ -1,9 +1,11 @@
 import { Bell, Search, User, Settings, LogOut, Menu, Brain, Activity, CheckCircle } from 'lucide-react'
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useWorkflow } from '../../context/WorkflowContext'
 import { Badge } from '../ui/Badge'
 
 const Header = ({ onMenuClick }) => {
+  const navigate = useNavigate()
   const [showProfile, setShowProfile] = useState(false)
   const { currentUser, logout } = useWorkflow()
 
@@ -11,6 +13,12 @@ const Header = ({ onMenuClick }) => {
     procurement_manager: 'Procurement Manager',
     supplier: 'Supplier',
     finance_approver: 'Finance Approver',
+  }
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login')
+    setShowProfile(false)
   }
 
   return (
@@ -82,7 +90,7 @@ const Header = ({ onMenuClick }) => {
                 </a>
                 <hr className="my-1" />
                 <button
-                  onClick={logout}
+                  onClick={handleLogout}
                   className="flex items-center gap-2 px-4 py-2 text-sm text-danger-600 hover:bg-gray-100 w-full text-left"
                 >
                   <LogOut className="w-4 h-4" />

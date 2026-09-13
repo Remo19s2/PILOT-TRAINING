@@ -7,15 +7,19 @@ import { Input } from '../components/ui/Input'
 import { Select } from '../components/ui/Select'
 import QuotationCard from '../components/shared/QuotationCard'
 import StatusBadge from '../components/shared/StatusBadge'
-import { Search, FileText, ArrowRight } from 'lucide-react'
+import { Search, FileText, ArrowRight, RefreshCw } from 'lucide-react'
 
 const Quotations = () => {
   const navigate = useNavigate()
-  const { quotations, rfqs } = useWorkflow()
+  const { quotations, rfqs, currentUser } = useWorkflow()
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
 
-  const filteredQuotations = quotations.filter(quotation => {
+  // Filter quotations for current supplier
+  const supplierId = currentUser?.id || 'SUP-001'
+  const myQuotations = quotations.filter(q => q.supplierId === supplierId)
+
+  const filteredQuotations = myQuotations.filter(quotation => {
     const matchesSearch = quotation.supplierName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          quotation.rfqId.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = statusFilter === 'all' || quotation.status === statusFilter
@@ -26,8 +30,8 @@ const Quotations = () => {
     navigate(`/quotation-details/${quotation.id}`)
   }
 
-  const handleSelectSupplier = (quotation) => {
-    navigate(`/compare-quotations/${quotation.rfqId}`)
+  const handleReviseQuotation = (quotation) => {
+    navigate(`/revise-quotation/${quotation.id}`)
   }
 
   const handleCompareQuotations = (rfqId) => {
@@ -99,7 +103,7 @@ const Quotations = () => {
                     key={quotation.id}
                     quotation={quotation}
                     onView={handleViewQuotation}
-                    onSelect={quotation.status === 'submitted' ? handleSelectSupplier : undefined}
+                    onRevise={handleReviseQuotation}
                   />
                 ))}
               </div>

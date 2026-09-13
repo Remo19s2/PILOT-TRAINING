@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useWorkflow } from '../../context/WorkflowContext'
 import { 
   LayoutDashboard, 
@@ -134,6 +134,7 @@ const financeApproverNavigation = [
 ]
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
+  const navigate = useNavigate()
   const [expandedGroups, setExpandedGroups] = useState({
     Overview: true,
     Procurement: true,
@@ -194,7 +195,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
 
   const handleLogout = () => {
     logout()
-    window.location.href = '/login'
+    navigate('/login')
   }
 
   return (

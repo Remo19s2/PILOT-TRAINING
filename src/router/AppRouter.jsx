@@ -11,6 +11,7 @@ import PlanningInsights from '../pages/PlanningInsights'
 import RFQStatus from '../pages/RFQStatus'
 import RevisedQuotations from '../pages/RevisedQuotations'
 import RevisedQuotationDetails from '../pages/RevisedQuotationDetails'
+import ReviseQuotation from '../pages/ReviseQuotation'
 import SupplierResponse from '../pages/SupplierResponse'
 import CreateRFQ from '../pages/CreateRFQ'
 import RFQs from '../pages/RFQs'
@@ -95,6 +96,7 @@ const AppRouter = () => {
       <Route path="/rfq-details/:id" element={<Layout><RFQDetails /></Layout>} />
       <Route path="/submit-quotation/:id" element={<Layout><SubmitQuotation /></Layout>} />
       <Route path="/submitted-quotations" element={<Layout><Quotations /></Layout>} />
+      <Route path="/revise-quotation/:id" element={<Layout><ReviseQuotation /></Layout>} />
       <Route path="/supplier-negotiations" element={<Layout><SupplierNegotiations /></Layout>} />
       <Route path="/final-decisions" element={<Layout><FinalDecisions /></Layout>} />
       <Route path="/supplier-alerts" element={<Layout><SupplierAlerts /></Layout>} />
