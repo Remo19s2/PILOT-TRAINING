@@ -1,18 +1,19 @@
 from datetime import datetime
 from decimal import Decimal
 from typing import Literal
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
 
 class UserOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    id: str
+    id: UUID
     username: str
     display_name: str
     email: str
     role: str
-    supplier_id: str | None = None
+    supplier_id: UUID | None = None
 
 
 class LoginRequest(BaseModel):
@@ -34,31 +35,31 @@ class SessionOut(BaseModel):
 class RfqItemIn(BaseModel):
     description: str = Field(min_length=1)
     quantity: int = Field(gt=0)
-    component_id: str | None = None
+    component_id: UUID | None = None
 
 
 class RfqCreate(BaseModel):
-    requirement_id: str | None = None
+    requirement_id: UUID | None = None
     quotation_deadline: datetime
     required_delivery_date: datetime
     evaluation_policy: str = Field(min_length=1)
     expected_supplier_count: int = Field(gt=0)
     minimum_valid_quotation_count: int = Field(gt=0)
     items: list[RfqItemIn] = Field(min_length=1)
-    supplier_ids: list[str] = Field(min_length=1)
+    supplier_ids: list[UUID] = Field(min_length=1)
 
 
 class RfqSend(BaseModel):
-    supplier_ids: list[str] = Field(min_length=1)
+    supplier_ids: list[UUID] = Field(min_length=1)
 
 
 class SupplierSelection(BaseModel):
-    quotation_id: str
+    quotation_id: UUID
 
 
 class QuotationCreate(BaseModel):
-    rfq_id: str
-    supplier_id: str
+    rfq_id: UUID
+    supplier_id: UUID
     unit_price: Decimal = Field(gt=0)
     total_price: Decimal = Field(gt=0)
     quantity: int = Field(gt=0)
@@ -71,17 +72,17 @@ class QuotationCreate(BaseModel):
 
 class QuotationOut(QuotationCreate):
     model_config = ConfigDict(from_attributes=True)
-    id: str
+    id: UUID
     version: int
     status: str
     submitted_at: datetime
-    supersedes_id: str | None = None
+    supersedes_id: UUID | None = None
 
 
 class RfqOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    id: str
-    requirement_id: str | None
+    id: UUID
+    requirement_id: UUID | None
     status: str
     release_date: datetime | None
     quotation_deadline: datetime
@@ -106,10 +107,10 @@ EventType = Literal[
 
 
 class EventSource(BaseModel):
-    user_id: str | None = None
-    rfq_id: str | None = None
-    component_id: str | None = None
-    supplier_id: str | None = None
+    user_id: UUID | None = None
+    rfq_id: UUID | None = None
+    component_id: UUID | None = None
+    supplier_id: UUID | None = None
 
 
 class ProcurementEventIn(BaseModel):
@@ -121,13 +122,13 @@ class ProcurementEventIn(BaseModel):
 
 class WorkflowExecutionOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    id: str
+    id: UUID
     workflow_type: str
     event_type: str
-    parent_execution_id: str | None
+    parent_execution_id: UUID | None
     status: str
-    rfq_id: str | None
-    supplier_id: str | None
+    rfq_id: UUID | None
+    supplier_id: UUID | None
     sns_workflow_id: str | None
     sns_execution_id: str | None
     input_payload: dict
@@ -144,7 +145,7 @@ class DecisionAction(BaseModel):
 
 
 class NegotiationDraftRequest(BaseModel):
-    quotation_id: str
+    quotation_id: UUID
     dimensions: list[str] = Field(min_length=1)
 
 
@@ -153,8 +154,8 @@ class NegotiationAuthorization(BaseModel):
 
 
 class PurchaseOrderCreate(BaseModel):
-    rfq_id: str
-    quotation_id: str
+    rfq_id: UUID
+    quotation_id: UUID
 
 
 class PurchaseOrderAcknowledgement(BaseModel):
@@ -164,10 +165,10 @@ class PurchaseOrderAcknowledgement(BaseModel):
 
 class PurchaseOrderOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    id: str
-    supplier_id: str
-    rfq_id: str
-    quotation_id: str
+    id: UUID
+    supplier_id: UUID
+    rfq_id: UUID
+    quotation_id: UUID
     status: str
     created_at: datetime
     acknowledged_at: datetime | None = None

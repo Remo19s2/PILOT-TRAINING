@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
 
+from uuid import UUID
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -7,7 +9,7 @@ from ..models import Quotation, Rfq, RfqSupplier, Supplier
 
 
 class RiskService:
-    def assess_supplier(self, db: Session, supplier_id: str, rfq_id: str | None = None) -> dict:
+    def assess_supplier(self, db: Session, supplier_id: UUID, rfq_id: UUID | None = None) -> dict:
         supplier = db.get(Supplier, supplier_id)
         if not supplier:
             raise ValueError("Supplier not found")

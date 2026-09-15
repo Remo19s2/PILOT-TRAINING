@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -9,7 +9,7 @@ from ..models import Approval, PurchaseOrder, PurchaseOrderItem, Quotation, Rfq,
 
 
 class PurchaseOrderService:
-    def create_draft(self, db: Session, user: User, rfq_id: str, quotation_id: str) -> PurchaseOrder:
+    def create_draft(self, db: Session, user: User, rfq_id: UUID, quotation_id: UUID) -> PurchaseOrder:
         quotation = db.get(Quotation, quotation_id)
         rfq = db.get(Rfq, rfq_id)
         approval = db.scalar(select(Approval).where(Approval.rfq_id == rfq_id, Approval.quotation_id == quotation_id, Approval.status == "APPROVED"))
@@ -20,17 +20,16 @@ class PurchaseOrderService:
         existing = db.scalar(select(PurchaseOrder).where(PurchaseOrder.quotation_id == quotation_id, PurchaseOrder.status != "CANCELLED"))
         if existing:
             return existing
-        po = PurchaseOrder(id=f"PO-{uuid4().hex[:10].upper()}", supplier_id=quotation.supplier_id, rfq_id=rfq_id, quotation_id=quotation_id, created_by=user.id, status="DRAFT")
+        po = PurchaseOrder(id=uuid4(), supplier_id=quotation.supplier_id, rfq_id=rfq_id, quotation_id=quotation_id, created_by=user.id, status="DRAFT")
         rfq_item = db.scalar(select(RfqItem).where(RfqItem.rfq_id == rfq_id).limit(1))
-        po_item = PurchaseOrderItem(id=str(uuid4()), purchase_order_id=po.id, description=rfq_item.description if rfq_item else "Approved quotation item", quantity=quotation.quantity, unit_price=quotation.unit_price)
+        po_item = PurchaseOrderItem(id=uuid4(), purchase_order_id=po.id, description=rfq_item.description if rfq_item else "Approved quotation item", quantity=quotation.quantity, unit_price=quotation.unit_price)
         db.add(po)
         db.add(po_item)
         record_audit(db, user, "PO_CREATED", "PURCHASE_ORDER", po.id, new_values={"status": po.status, "quotation_id": quotation_id})
         db.commit()
         db.refresh(po)
         return po
-
-    def acknowledge(self, db: Session, user: User, po_id: str, accepted: bool, notes: str | None) -> PurchaseOrder:
+    def acknowledge(self, db: Session, user: User, po_id: UUID, accepted: bool, notes: str | None) -> PurchaseOrder:
         po = db.get(PurchaseOrder, po_id)
         if not po or po.supplier_id != user.supplier_id:
             raise ValueError("Purchase order not found")

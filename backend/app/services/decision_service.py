@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from decimal import Decimal
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -10,7 +10,7 @@ from .risk_service import RiskService
 
 
 class DecisionService:
-    def evaluate(self, db: Session, rfq: Rfq, requested_by: User, execution_id: str | None = None) -> DecisionRecommendation:
+    def evaluate(self, db: Session, rfq: Rfq, requested_by: User, execution_id: UUID | None = None) -> DecisionRecommendation:
         quotations = list(db.scalars(select(Quotation).where(Quotation.rfq_id == rfq.id, Quotation.status != "SUPERSEDED").order_by(Quotation.submitted_at.desc())))
         latest = {}
         for quotation in quotations:
@@ -44,7 +44,7 @@ class DecisionService:
         explanation = "Deterministic evaluation produced the ranking from database quotations, feasibility constraints, delivery, price, and risk evidence."
         if recommendation:
             explanation += f" {recommendation['supplier_id']} was ranked first by the deterministic supplier evaluation with an overall score of {recommendation['overall_score']}."
-        decision = DecisionRecommendation(id=str(uuid4()), rfq_id=rfq.id, execution_id=execution_id, status="PENDING_HUMAN_REVIEW", recommendation=result, deterministic_result=result, explanation=explanation)
+        decision = DecisionRecommendation(id=uuid4(), rfq_id=rfq.id, execution_id=execution_id, status="PENDING_HUMAN_REVIEW", recommendation=result, deterministic_result=result, explanation=explanation)
         db.add(decision)
         db.commit()
         db.refresh(decision)

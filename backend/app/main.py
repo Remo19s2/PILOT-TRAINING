@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 import logging
 import time
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -63,7 +63,7 @@ def user_out(user: User) -> UserOut:
     return UserOut(id=user.id, username=user.username, display_name=user.display_name, email=user.email, role=user.role.name, supplier_id=user.supplier_id)
 
 
-def supplier_scope(user: User, supplier_id: str) -> None:
+def supplier_scope(user: User, supplier_id: UUID) -> None:
     if user.role.name == "SUPPLIER" and user.supplier_id != supplier_id:
         raise HTTPException(status_code=403, detail="Suppliers may only access their own records")
 
@@ -98,7 +98,7 @@ def create_monitoring_event(payload: ProcurementEventIn, db: DbSession, user: Us
 
 
 @app.get("/api/workflows/executions/{execution_id}", response_model=WorkflowExecutionOut)
-def get_workflow_execution(execution_id: str, db: DbSession, user: User = Depends(current_user)) -> WorkflowExecutionOut:
+def get_workflow_execution(execution_id: UUID, db: DbSession, user: User = Depends(current_user)) -> WorkflowExecutionOut:
     execution = db.get(WorkflowExecution, execution_id)
     if not execution:
         raise HTTPException(status_code=404, detail="Workflow execution not found")
@@ -147,7 +147,11 @@ def refresh(payload: RefreshRequest, db: DbSession) -> SessionOut:
         user_id = decode_token(payload.refresh_token, "refresh")
     except ValueError as error:
         raise HTTPException(status_code=401, detail="Invalid or expired refresh token") from error
-    user = db.get(User, user_id)
+    try:
+        parsed_user_id = UUID(user_id)
+    except ValueError as error:
+        raise HTTPException(status_code=401, detail="Invalid user identity") from error
+    user = db.get(User, parsed_user_id)
     if not user or not user.is_active:
         raise HTTPException(status_code=401, detail="Inactive user")
     return SessionOut(access_token=create_access_token(user.id), refresh_token=create_refresh_token(user.id), user=user_out(user))
@@ -161,7 +165,7 @@ def suppliers(db: DbSession, user: User = Depends(current_user)) -> list[Supplie
 
 
 @app.get("/api/suppliers/{supplier_id}", response_model=None)
-def supplier(supplier_id: str, db: DbSession, user: User = Depends(current_user)) -> Supplier:
+def supplier(supplier_id: UUID, db: DbSession, user: User = Depends(current_user)) -> Supplier:
     supplier_scope(user, supplier_id)
     result = db.get(Supplier, supplier_id)
     if not result:
@@ -170,7 +174,7 @@ def supplier(supplier_id: str, db: DbSession, user: User = Depends(current_user)
 
 
 @app.get("/api/suppliers/{supplier_id}/risk")
-def supplier_risk(supplier_id: str, db: DbSession, user: User = Depends(current_user)) -> dict:
+def supplier_risk(supplier_id: UUID, db: DbSession, user: User = Depends(current_user)) -> dict:
     supplier_scope(user, supplier_id)
     if not db.get(Supplier, supplier_id):
         raise HTTPException(status_code=404, detail="Supplier not found")
@@ -183,7 +187,7 @@ def requirements(db: DbSession, user: User = Depends(require_roles("PROCUREMENT_
 
 
 @app.get("/api/planning/requirements/{requirement_id}", response_model=None)
-def requirement(requirement_id: str, db: DbSession, user: User = Depends(require_roles("PROCUREMENT_MANAGER"))) -> PlanningRequirement:
+def requirement(requirement_id: UUID, db: DbSession, user: User = Depends(require_roles("PROCUREMENT_MANAGER"))) -> PlanningRequirement:
     result = db.get(PlanningRequirement, requirement_id)
     if not result:
         raise HTTPException(status_code=404, detail="Planning requirement not found")
@@ -198,9 +202,9 @@ def create_rfq(payload: RfqCreate, db: DbSession, user: User = Depends(require_r
     if len(suppliers) != len(set(payload.supplier_ids)):
         raise HTTPException(status_code=422, detail="One or more suppliers do not exist")
     now = datetime.now(timezone.utc)
-    rfq = Rfq(id=f"RFQ-{uuid4().hex[:10].upper()}", requirement_id=payload.requirement_id, created_by=user.id, status="DRAFT", quotation_deadline=payload.quotation_deadline, required_delivery_date=payload.required_delivery_date, evaluation_policy=payload.evaluation_policy, expected_supplier_count=payload.expected_supplier_count, minimum_valid_quotation_count=payload.minimum_valid_quotation_count, created_at=now)
-    rfq.items = [RfqItem(id=str(uuid4()), description=item.description, quantity=item.quantity, component_id=item.component_id) for item in payload.items]
-    rfq.suppliers = [RfqSupplier(id=str(uuid4()), supplier_id=supplier_id, response_status="PENDING") for supplier_id in set(payload.supplier_ids)]
+    rfq = Rfq(id=uuid4(), requirement_id=payload.requirement_id, created_by=user.id, status="DRAFT", quotation_deadline=payload.quotation_deadline, required_delivery_date=payload.required_delivery_date, evaluation_policy=payload.evaluation_policy, expected_supplier_count=payload.expected_supplier_count, minimum_valid_quotation_count=payload.minimum_valid_quotation_count, created_at=now)
+    rfq.items = [RfqItem(id=uuid4(), description=item.description, quantity=item.quantity, component_id=item.component_id) for item in payload.items]
+    rfq.suppliers = [RfqSupplier(id=uuid4(), supplier_id=supplier_id, response_status="PENDING") for supplier_id in set(payload.supplier_ids)]
     db.add(rfq)
     record_audit(db, user, "RFQ_CREATED", "RFQ", rfq.id, new_values={"status": rfq.status, "supplier_ids": payload.supplier_ids})
     db.commit()
@@ -217,7 +221,7 @@ def list_rfqs(db: DbSession, user: User = Depends(current_user)) -> list[dict]:
 
 
 @app.get("/api/rfqs/{rfq_id}")
-def get_rfq(rfq_id: str, db: DbSession, user: User = Depends(current_user)) -> dict:
+def get_rfq(rfq_id: UUID, db: DbSession, user: User = Depends(current_user)) -> dict:
     rfq = db.get(Rfq, rfq_id)
     if not rfq:
         raise HTTPException(status_code=404, detail="RFQ not found")
@@ -228,7 +232,7 @@ def get_rfq(rfq_id: str, db: DbSession, user: User = Depends(current_user)) -> d
 
 
 @app.post("/api/rfqs/{rfq_id}/send", response_model=RfqOut)
-def send_rfq(rfq_id: str, payload: RfqSend, db: DbSession, user: User = Depends(require_roles("PROCUREMENT_MANAGER"))) -> Rfq:
+def send_rfq(rfq_id: UUID, payload: RfqSend, db: DbSession, user: User = Depends(require_roles("PROCUREMENT_MANAGER"))) -> Rfq:
     rfq = db.scalar(select(Rfq).where(Rfq.id == rfq_id).with_for_update())
     if not rfq:
         raise HTTPException(status_code=404, detail="RFQ not found")
@@ -252,7 +256,7 @@ def send_rfq(rfq_id: str, payload: RfqSend, db: DbSession, user: User = Depends(
 
 
 @app.get("/api/rfqs/{rfq_id}/responses")
-def rfq_responses(rfq_id: str, db: DbSession, user: User = Depends(current_user)) -> dict:
+def rfq_responses(rfq_id: UUID, db: DbSession, user: User = Depends(current_user)) -> dict:
     rfq = db.get(Rfq, rfq_id)
     if not rfq:
         raise HTTPException(status_code=404, detail="RFQ not found")
@@ -280,7 +284,7 @@ def submit_quotation(payload: QuotationCreate, db: DbSession, user: User = Depen
     latest = db.scalar(select(Quotation).where(Quotation.rfq_id == payload.rfq_id, Quotation.supplier_id == payload.supplier_id).order_by(Quotation.version.desc()).limit(1))
     if latest and latest.status != "SUPERSEDED":
         raise HTTPException(status_code=409, detail="A quotation already exists; use the revision endpoint")
-    quotation = Quotation(id=f"QUOT-{uuid4().hex[:10].upper()}", version=1, status="SUBMITTED", **payload.model_dump())
+    quotation = Quotation(id=uuid4(), version=1, status="SUBMITTED", **payload.model_dump())
     db.add(quotation)
     assignment.response_status = "RESPONDED"
     assignment.responded_at = datetime.now(timezone.utc)
@@ -291,7 +295,7 @@ def submit_quotation(payload: QuotationCreate, db: DbSession, user: User = Depen
 
 
 @app.get("/api/rfqs/{rfq_id}/quotations", response_model=list[QuotationOut])
-def rfq_quotations(rfq_id: str, db: DbSession, user: User = Depends(current_user)) -> list[Quotation]:
+def rfq_quotations(rfq_id: UUID, db: DbSession, user: User = Depends(current_user)) -> list[Quotation]:
     if not db.get(Rfq, rfq_id):
         raise HTTPException(status_code=404, detail="RFQ not found")
     query = select(Quotation).where(Quotation.rfq_id == rfq_id, Quotation.status != "SUPERSEDED")
@@ -300,7 +304,7 @@ def rfq_quotations(rfq_id: str, db: DbSession, user: User = Depends(current_user
 
 
 @app.get("/api/quotations/{quotation_id}", response_model=QuotationOut)
-def get_quotation(quotation_id: str, db: DbSession, user: User = Depends(current_user)) -> Quotation:
+def get_quotation(quotation_id: UUID, db: DbSession, user: User = Depends(current_user)) -> Quotation:
     quotation = db.get(Quotation, quotation_id)
     if not quotation:
         raise HTTPException(status_code=404, detail="Quotation not found")
@@ -309,13 +313,13 @@ def get_quotation(quotation_id: str, db: DbSession, user: User = Depends(current
 
 
 @app.post("/api/quotations/{quotation_id}/revise", response_model=QuotationOut)
-def revise_quotation(quotation_id: str, payload: QuotationCreate, db: DbSession, user: User = Depends(require_roles("SUPPLIER"))) -> Quotation:
+def revise_quotation(quotation_id: UUID, payload: QuotationCreate, db: DbSession, user: User = Depends(require_roles("SUPPLIER"))) -> Quotation:
     previous = db.scalar(select(Quotation).where(Quotation.id == quotation_id).with_for_update())
     if not previous or previous.supplier_id != user.supplier_id or previous.rfq_id != payload.rfq_id:
         raise HTTPException(status_code=404, detail="Quotation not found")
     if previous.status == "SUPERSEDED":
         raise HTTPException(status_code=409, detail="Only the current quotation can be revised")
-    revision = Quotation(id=f"QUOT-{uuid4().hex[:10].upper()}", version=previous.version + 1, status="SUBMITTED", supersedes_id=previous.id, **payload.model_dump())
+    revision = Quotation(id=uuid4(), version=previous.version + 1, status="SUBMITTED", supersedes_id=previous.id, **payload.model_dump())
     previous.status = "SUPERSEDED"
     db.add(revision)
     record_audit(db, user, "QUOTATION_REVISED", "QUOTATION", revision.id, old_values={"quotation_id": previous.id, "version": previous.version}, new_values={"quotation_id": revision.id, "version": revision.version})
@@ -330,7 +334,7 @@ def approvals(db: DbSession, user: User = Depends(require_roles("PROCUREMENT_MAN
 
 
 @app.post("/api/rfqs/{rfq_id}/select")
-def select_supplier(rfq_id: str, payload: SupplierSelection, db: DbSession, user: User = Depends(require_roles("PROCUREMENT_MANAGER"))) -> dict:
+def select_supplier(rfq_id: UUID, payload: SupplierSelection, db: DbSession, user: User = Depends(require_roles("PROCUREMENT_MANAGER"))) -> dict:
     rfq = db.scalar(select(Rfq).where(Rfq.id == rfq_id).with_for_update())
     quotation = db.scalar(select(Quotation).where(Quotation.id == payload.quotation_id, Quotation.rfq_id == rfq_id, Quotation.status != "SUPERSEDED").with_for_update())
     if not rfq or not quotation:
@@ -342,7 +346,7 @@ def select_supplier(rfq_id: str, payload: SupplierSelection, db: DbSession, user
     if received_count < rfq.minimum_valid_quotation_count:
         raise HTTPException(status_code=409, detail="RFQ evaluation condition is not satisfied")
     rfq.status = "SUPPLIER_SELECTED"
-    approval = Approval(id=f"APR-{uuid4().hex[:10].upper()}", rfq_id=rfq_id, quotation_id=quotation.id, requested_by=user.id, status="PENDING")
+    approval = Approval(id=uuid4(), rfq_id=rfq_id, quotation_id=quotation.id, requested_by=user.id, status="PENDING")
     db.add(approval)
     record_audit(db, user, "SUPPLIER_SELECTED", "QUOTATION", quotation.id, new_values={"rfq_id": rfq_id, "approval_id": approval.id})
     record_audit(db, user, "APPROVAL_REQUESTED", "APPROVAL", approval.id, new_values={"status": approval.status})
@@ -351,7 +355,7 @@ def select_supplier(rfq_id: str, payload: SupplierSelection, db: DbSession, user
 
 
 @app.get("/api/decisions/{rfq_id}")
-def get_decision(rfq_id: str, db: DbSession, user: User = Depends(require_roles("PROCUREMENT_MANAGER", "FINANCE_APPROVER"))) -> dict:
+def get_decision(rfq_id: UUID, db: DbSession, user: User = Depends(require_roles("PROCUREMENT_MANAGER", "FINANCE_APPROVER"))) -> dict:
     decision = db.scalar(select(DecisionRecommendation).where(DecisionRecommendation.rfq_id == rfq_id).order_by(DecisionRecommendation.created_at.desc()))
     if not decision:
         raise HTTPException(status_code=404, detail="No decision recommendation exists for this RFQ")
@@ -359,7 +363,7 @@ def get_decision(rfq_id: str, db: DbSession, user: User = Depends(require_roles(
 
 
 @app.post("/api/decisions/{rfq_id}/run", status_code=status.HTTP_202_ACCEPTED)
-def run_decision(rfq_id: str, db: DbSession, user: User = Depends(require_roles("PROCUREMENT_MANAGER"))) -> dict:
+def run_decision(rfq_id: UUID, db: DbSession, user: User = Depends(require_roles("PROCUREMENT_MANAGER"))) -> dict:
     rfq = db.get(Rfq, rfq_id)
     if not rfq:
         raise HTTPException(status_code=404, detail="RFQ not found")
@@ -376,7 +380,7 @@ def run_decision(rfq_id: str, db: DbSession, user: User = Depends(require_roles(
 
 
 @app.post("/api/decisions/{rfq_id}/action")
-def decision_action(rfq_id: str, payload: DecisionAction, db: DbSession, user: User = Depends(require_roles("PROCUREMENT_MANAGER"))) -> dict:
+def decision_action(rfq_id: UUID, payload: DecisionAction, db: DbSession, user: User = Depends(require_roles("PROCUREMENT_MANAGER"))) -> dict:
     decision = db.scalar(select(DecisionRecommendation).where(DecisionRecommendation.rfq_id == rfq_id).order_by(DecisionRecommendation.created_at.desc()))
     if not decision:
         raise HTTPException(status_code=404, detail="Decision recommendation not found")
@@ -391,7 +395,7 @@ def decision_action(rfq_id: str, payload: DecisionAction, db: DbSession, user: U
 
 
 @app.post("/api/approvals/{approval_id}/approve", response_model=None)
-def approve(approval_id: str, db: DbSession, user: User = Depends(require_roles("FINANCE_APPROVER"))) -> Approval:
+def approve(approval_id: UUID, db: DbSession, user: User = Depends(require_roles("FINANCE_APPROVER"))) -> Approval:
     approval = db.scalar(select(Approval).where(Approval.id == approval_id).with_for_update())
     if not approval:
         raise HTTPException(status_code=404, detail="Approval not found")
@@ -406,7 +410,7 @@ def approve(approval_id: str, db: DbSession, user: User = Depends(require_roles(
 
 
 @app.post("/api/approvals/{approval_id}/reject", response_model=None)
-def reject(approval_id: str, payload: ApprovalReject, db: DbSession, user: User = Depends(require_roles("FINANCE_APPROVER"))) -> Approval:
+def reject(approval_id: UUID, payload: ApprovalReject, db: DbSession, user: User = Depends(require_roles("FINANCE_APPROVER"))) -> Approval:
     approval = db.scalar(select(Approval).where(Approval.id == approval_id).with_for_update())
     if not approval:
         raise HTTPException(status_code=404, detail="Approval not found")
@@ -438,7 +442,7 @@ def draft_negotiation(payload: NegotiationDraftRequest, db: DbSession, user: Use
 
 
 @app.post("/api/negotiations/{negotiation_id}/authorize")
-def authorize_negotiation(negotiation_id: str, payload: NegotiationAuthorization, db: DbSession, user: User = Depends(require_roles("PROCUREMENT_MANAGER"))) -> dict:
+def authorize_negotiation(negotiation_id: UUID, payload: NegotiationAuthorization, db: DbSession, user: User = Depends(require_roles("PROCUREMENT_MANAGER"))) -> dict:
     try:
         return NegotiationService().authorize(db, user, negotiation_id, payload.message)
     except ValueError as error:
@@ -454,7 +458,7 @@ def list_purchase_orders(db: DbSession, user: User = Depends(current_user)) -> l
 
 
 @app.get("/api/purchase-orders/{po_id}", response_model=PurchaseOrderOut)
-def get_purchase_order(po_id: str, db: DbSession, user: User = Depends(current_user)) -> PurchaseOrder:
+def get_purchase_order(po_id: UUID, db: DbSession, user: User = Depends(current_user)) -> PurchaseOrder:
     po = db.get(PurchaseOrder, po_id)
     if not po:
         raise HTTPException(status_code=404, detail="Purchase order not found")
@@ -470,9 +474,8 @@ def create_purchase_order(payload: PurchaseOrderCreate, db: DbSession, user: Use
     except ValueError as error:
         raise HTTPException(status_code=409, detail=str(error)) from error
 
-
 @app.post("/api/purchase-orders/{po_id}/send", response_model=PurchaseOrderOut)
-def send_purchase_order(po_id: str, db: DbSession, user: User = Depends(require_roles("PROCUREMENT_MANAGER"))) -> PurchaseOrder:
+def send_purchase_order(po_id: UUID, db: DbSession, user: User = Depends(require_roles("PROCUREMENT_MANAGER"))) -> PurchaseOrder:
     po = db.scalar(select(PurchaseOrder).where(PurchaseOrder.id == po_id).with_for_update())
     if not po:
         raise HTTPException(status_code=404, detail="Purchase order not found")
@@ -486,7 +489,7 @@ def send_purchase_order(po_id: str, db: DbSession, user: User = Depends(require_
 
 
 @app.post("/api/purchase-orders/{po_id}/acknowledge", response_model=PurchaseOrderOut)
-def acknowledge_purchase_order(po_id: str, payload: PurchaseOrderAcknowledgement, db: DbSession, user: User = Depends(require_roles("SUPPLIER"))) -> PurchaseOrder:
+def acknowledge_purchase_order(po_id: UUID, payload: PurchaseOrderAcknowledgement, db: DbSession, user: User = Depends(require_roles("SUPPLIER"))) -> PurchaseOrder:
     try:
         return PurchaseOrderService().acknowledge(db, user, po_id, payload.accepted, payload.notes)
     except ValueError as error:
