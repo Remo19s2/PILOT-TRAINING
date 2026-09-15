@@ -3,6 +3,7 @@ from decimal import Decimal
 from uuid import UUID, uuid4
 
 from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Index, Integer, Numeric, String, Text, UniqueConstraint, Uuid, func
+from sqlalchemy.dialects.postgresql import INET
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .db import Base
@@ -323,7 +324,7 @@ class AuditLog(Base):
     execution_id: Mapped[UUID | None] = mapped_column(ForeignKey("workflow_executions.id"), nullable=True, index=True)
     old_values: Mapped[dict | None] = mapped_column(JSON)
     new_values: Mapped[dict | None] = mapped_column(JSON)
-    ip_address: Mapped[str | None] = mapped_column(String(64))
+    ip_address: Mapped[str | None] = mapped_column(INET().with_variant(String(64), "sqlite"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 

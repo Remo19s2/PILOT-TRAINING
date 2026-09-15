@@ -4,9 +4,19 @@ from pathlib import Path
 
 import pytest
 from sqlalchemy import create_engine, inspect, text
+from sqlalchemy.dialects.postgresql import dialect
+
+from app.models import AuditLog
 
 
 MIGRATION_PATH = Path(__file__).parents[1] / "migrations" / "003_production_schema_reconciliation.sql"
+
+
+def test_audit_log_ip_address_uses_postgresql_inet():
+    column = AuditLog.__table__.c.ip_address
+
+    assert column.type.compile(dialect=dialect()) == "INET"
+    assert column.nullable is True
 
 
 def test_reconciliation_migration_has_only_known_fk_dependencies():
