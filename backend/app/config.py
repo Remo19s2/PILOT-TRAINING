@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     sns_base_url: str | None = None
     sns_api_key: str | None = None
     sns_master_workflow_id: str | None = None
+    sns_master_workflow_url: str | None = None
     sns_decision_workflow_id: str | None = None
     sns_negotiation_workflow_id: str | None = None
     sns_risk_workflow_id: str | None = None

@@ -1,0 +1,36 @@
+from unittest.mock import Mock, patch
+
+from app.config import Settings
+from app.services.sns.client import SnsClient
+from app.services.sns.schemas import SnsExecutionRequest
+
+
+def test_master_workflow_posts_existing_event_envelope_with_execution_context():
+    settings = Settings(
+        sns_master_workflow_id="master-workflow",
+        sns_master_workflow_url="https://example.test/master",
+        sns_callback_url="https://prism.example.test/api/sns/webhook",
+    )
+    response = Mock(status_code=200)
+    response.json.return_value = {"execution_id": "sns-execution-1", "status": "started"}
+
+    with patch("app.services.sns.client.httpx.post", return_value=response) as post:
+        result = SnsClient(settings).start_execution(
+            SnsExecutionRequest(
+                workflow_id="master-workflow",
+                callback_url=settings.sns_callback_url,
+                payload={"event_id": "event-1", "execution_id": "prism-execution-1"},
+            )
+        )
+
+    post.assert_called_once_with(
+        "https://example.test/master",
+        headers={"Accept": "application/json", "Content-Type": "application/json"},
+        json={
+            "callback_url": "https://prism.example.test/api/sns/webhook",
+            "payload": {"event_id": "event-1", "execution_id": "prism-execution-1"},
+        },
+        timeout=15.0,
+    )
+    assert result.execution_id == "sns-execution-1"
+    assert result.status == "started"

@@ -36,7 +36,7 @@ class WorkflowExecutionService:
             db.commit()
             return execution
         try:
-            result = self.sns.start(self.settings.sns_master_workflow_id, execution.input_payload)
+            result = self.sns.start(self.settings.sns_master_workflow_id, execution.input_payload, str(execution.id))
             execution.sns_workflow_id = self.settings.sns_master_workflow_id
             execution.sns_execution_id = result["execution_id"]
             execution.status = "WAITING_FOR_SNS"
