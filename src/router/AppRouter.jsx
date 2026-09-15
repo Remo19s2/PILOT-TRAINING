@@ -98,6 +98,7 @@ const AppRouter = () => {
       <Route path="/submitted-quotations" element={<Layout><Quotations /></Layout>} />
       <Route path="/revise-quotation/:id" element={<Layout><ReviseQuotation /></Layout>} />
       <Route path="/supplier-negotiations" element={<Layout><SupplierNegotiations /></Layout>} />
+      <Route path="/supplier-negotiations/:negotiationId" element={<Layout><SupplierNegotiations /></Layout>} />
       <Route path="/final-decisions" element={<Layout><FinalDecisions /></Layout>} />
       <Route path="/supplier-alerts" element={<Layout><SupplierAlerts /></Layout>} />
       <Route path="/supplier-profile" element={<Layout><div>Supplier Profile</div></Layout>} />

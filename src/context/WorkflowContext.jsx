@@ -1,4 +1,15 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import { login as authenticate, logout as clearAuthentication, me } from '../api/auth'
+import { getRequirements } from '../api/planning'
+import { listSuppliers } from '../api/suppliers'
+import { createRfq as createRfqRequest, listRfqs, sendRfq as sendRfqRequest, getRfqResponses, selectSupplier as selectSupplierRequest } from '../api/rfqs'
+import { submitQuotation as submitQuotationRequest, listRfqQuotations, reviseQuotation as reviseQuotationRequest } from '../api/quotations'
+import { listApprovals, approve as approveRequestApi, reject as rejectRequestApi } from '../api/approvals'
+import { getSupplierRisk } from '../api/risk'
+import { getDecision } from '../api/decisions'
+import { listNegotiations } from '../api/negotiations'
+import { listPurchaseOrders } from '../api/purchaseOrders'
+import { getWorkflowExecution } from '../api/executions'
 
 // Mock users for authentication
 const mockUsers = [
@@ -1231,6 +1242,94 @@ const workflowStatuses = [
 
 const WorkflowContext = createContext()
 
+const normalizeUser = (user) => user ? {
+  ...user,
+  userId: user.id,
+  id: user.supplier_id || user.id,
+  role: user.role?.toLowerCase(),
+  roleName: user.role?.replaceAll('_', ' ') || '',
+} : null
+
+const normalizeRequirement = (requirement) => ({
+  ...requirement,
+  componentName: requirement.component_name,
+  requiredQuantity: requirement.required_quantity,
+  currentInventory: requirement.current_inventory,
+  shortageQuantity: Math.max(0, requirement.required_quantity - requirement.current_inventory),
+  requiredDeliveryDate: requirement.required_delivery_date,
+})
+
+const normalizeRfq = (rfq) => ({
+  ...rfq,
+  requirementId: rfq.requirement_id,
+  quotationDeadline: rfq.quotation_deadline,
+  requiredDeliveryDate: rfq.required_delivery_date,
+  expectedBudget: rfq.expected_budget,
+  component: rfq.items?.[0]?.description || rfq.component,
+  quantity: rfq.items?.[0]?.quantity || rfq.quantity,
+})
+
+const normalizeQuotation = (quotation) => ({
+  ...quotation,
+  rfqId: quotation.rfq_id,
+  supplierId: quotation.supplier_id,
+  unitPrice: Number(quotation.unit_price),
+  totalPrice: Number(quotation.total_price),
+  availableQuantity: quotation.available_quantity,
+  deliveryAt: quotation.delivery_at,
+  paymentTerms: quotation.payment_terms,
+  warranty: quotation.warranty_quality,
+  additionalNotes: quotation.additional_notes,
+  submittedAt: quotation.submitted_at,
+})
+
+const normalizeApproval = (approval) => ({
+  ...approval,
+  rfqId: approval.rfq_id,
+  quotationId: approval.quotation_id,
+  status: approval.status?.toLowerCase(),
+  rejectionReason: approval.decision_reason,
+})
+
+const normalizeNegotiation = (negotiation) => ({
+  ...negotiation,
+  rfqId: negotiation.rfq_id,
+  quotationId: negotiation.quotation_id,
+  supplierId: negotiation.supplier_id,
+  negotiationHistory: negotiation.messages || [],
+})
+
+const normalizeRisk = (risk) => {
+  const level = score => score >= 70 ? 'high' : score >= 40 ? 'medium' : 'low'
+  const risks = {
+    delivery: { score: risk.delivery_risk ?? 0, level: level(risk.delivery_risk ?? 0), explanation: risk.risk_drivers?.join('; ') || 'No delivery risk driver recorded' },
+    quality: { score: risk.quality_risk ?? 0, level: level(risk.quality_risk ?? 0), explanation: risk.risk_drivers?.join('; ') || 'No quality risk driver recorded' },
+    capacity: { score: risk.capacity_risk ?? 0, level: level(risk.capacity_risk ?? 0), explanation: risk.risk_drivers?.join('; ') || 'No capacity risk driver recorded' },
+  }
+  return {
+    ...risk,
+    supplierId: risk.supplier_id,
+    overallRiskScore: risk.overall_risk ?? 0,
+    overallRiskLevel: level(risk.overall_risk ?? 0),
+    primaryRiskCategory: risks.delivery.score >= risks.capacity.score ? 'Delivery' : 'Capacity',
+    lastAnalysisDate: risk.assessed_at,
+    risks,
+    riskBreakdown: Object.entries(risks).map(([name, value]) => ({ name: `${name[0].toUpperCase()}${name.slice(1)} Risk`, score: value.score })),
+    riskAnalysis: { contributingFactors: risk.risk_drivers || [], potentialImpact: risk.potential_impact },
+    historicalPerformance: { totalOrders: 0, onTimeDeliveries: 0, delayedDeliveries: 0, averageDelayDays: 0, onTimePercentage: 0 },
+    deliveryData: [],
+    riskTrendData: [],
+  }
+}
+
+const normalizePurchaseOrder = (purchaseOrder) => ({
+  ...purchaseOrder,
+  supplierId: purchaseOrder.supplier_id,
+  rfqId: purchaseOrder.rfq_id,
+  quotationId: purchaseOrder.quotation_id,
+  acknowledgedAt: purchaseOrder.acknowledged_at,
+})
+
 export const useWorkflow = () => {
   const context = useContext(WorkflowContext)
   if (!context) {
@@ -1240,347 +1339,157 @@ export const useWorkflow = () => {
 }
 
 export const WorkflowProvider = ({ children }) => {
-  // State
   const [currentUser, setCurrentUser] = useState(() => {
     const saved = localStorage.getItem('prism_user')
-    return saved ? JSON.parse(saved) : null
+    return saved ? normalizeUser(JSON.parse(saved)) : null
   })
-  const [requirements, setRequirements] = useState(() => {
-    const saved = localStorage.getItem('prism_requirements')
-    return saved ? JSON.parse(saved) : initialRequirements
-  })
-  const [suppliers, setSuppliers] = useState(() => {
-    const saved = localStorage.getItem('prism_suppliers')
-    return saved ? JSON.parse(saved) : initialSuppliers
-  })
-  const [rfqs, setRFQs] = useState(() => {
-    const saved = localStorage.getItem('prism_rfqs')
-    return saved ? JSON.parse(saved) : initialRFQs
-  })
-  const [quotations, setQuotations] = useState(() => {
-    const saved = localStorage.getItem('prism_quotations')
-    return saved ? JSON.parse(saved) : initialQuotations
-  })
-  const [negotiations, setNegotiations] = useState(() => {
-    const saved = localStorage.getItem('prism_negotiations')
-    return saved ? JSON.parse(saved) : initialNegotiations
-  })
-  const [supplierComparisons, setSupplierComparisons] = useState(() => {
-    const saved = localStorage.getItem('prism_supplier_comparisons')
-    return saved ? JSON.parse(saved) : initialSupplierComparisons
-  })
-  const [approvals, setApprovals] = useState(() => {
-    const saved = localStorage.getItem('prism_approvals')
-    return saved ? JSON.parse(saved) : initialApprovals
-  })
-  const [supplierRiskData, setSupplierRiskData] = useState(() => {
-    const saved = localStorage.getItem('prism_supplier_risk_data')
-    return saved ? JSON.parse(saved) : initialSupplierRiskData
-  })
-  const [riskRecommendations, setRiskRecommendations] = useState(() => {
-    const saved = localStorage.getItem('prism_risk_recommendations')
-    return saved ? JSON.parse(saved) : initialRiskRecommendations
-  })
-  const [riskResponseHistory, setRiskResponseHistory] = useState(() => {
-    const saved = localStorage.getItem('prism_risk_response_history')
-    return saved ? JSON.parse(saved) : initialRiskResponseHistory
-  })
+  const [requirements, setRequirements] = useState([])
+  const [suppliers, setSuppliers] = useState([])
+  const [rfqs, setRFQs] = useState([])
+  const [quotations, setQuotations] = useState([])
+  const [negotiations, setNegotiations] = useState([])
+  const [supplierComparisons] = useState([])
+  const [approvals, setApprovals] = useState([])
+  const [supplierRiskData, setSupplierRiskData] = useState({})
+  const [riskRecommendations] = useState({})
+  const [riskResponseHistory] = useState([])
+  const [purchaseOrders, setPurchaseOrders] = useState([])
+  const [decisionData, setDecisionData] = useState({})
+  const [workflowExecutions, setWorkflowExecutions] = useState({})
 
-  // Persist to localStorage
-  useEffect(() => {
-    localStorage.setItem('prism_user', JSON.stringify(currentUser))
-  }, [currentUser])
+  const refreshData = useCallback(async () => {
+    if (!localStorage.getItem('mycelia_access_token')) return
+    const [requirementData, supplierData, rfqData, approvalData] = await Promise.all([
+      getRequirements().catch(() => []),
+      listSuppliers().catch(() => []),
+      listRfqs().catch(() => []),
+      listApprovals().catch(() => []),
+    ])
+    setRequirements(requirementData.map(normalizeRequirement))
+    setSuppliers(supplierData)
+    setRFQs(rfqData.map(normalizeRfq))
+    setApprovals(approvalData.map(normalizeApproval))
+    const quotationData = await Promise.all(rfqData.map(rfq => listRfqQuotations(rfq.id).catch(() => [])))
+    setQuotations(quotationData.flat().map(normalizeQuotation))
+    const riskData = await Promise.all(supplierData.map(supplier => getSupplierRisk(supplier.id).catch(() => null)))
+    setSupplierRiskData(Object.fromEntries(riskData.filter(Boolean).map(item => [item.supplier_id, normalizeRisk(item)])))
+    setNegotiations((await listNegotiations().catch(() => [])).map(normalizeNegotiation))
+    setPurchaseOrders((await listPurchaseOrders().catch(() => [])).map(normalizePurchaseOrder))
+    const decisions = await Promise.all(rfqData.map(rfq => getDecision(rfq.id).catch(() => null)))
+    setDecisionData(Object.fromEntries(decisions.filter(Boolean).map(item => [item.rfq_id, item])))
+  }, [])
 
   useEffect(() => {
-    localStorage.setItem('prism_requirements', JSON.stringify(requirements))
-  }, [requirements])
-
-  useEffect(() => {
-    localStorage.setItem('prism_suppliers', JSON.stringify(suppliers))
-  }, [suppliers])
-
-  useEffect(() => {
-    localStorage.setItem('prism_rfqs', JSON.stringify(rfqs))
-  }, [rfqs])
-
-  useEffect(() => {
-    localStorage.setItem('prism_quotations', JSON.stringify(quotations))
-  }, [quotations])
-
-  useEffect(() => {
-    localStorage.setItem('prism_negotiations', JSON.stringify(negotiations))
-  }, [negotiations])
-
-  useEffect(() => {
-    localStorage.setItem('prism_supplier_comparisons', JSON.stringify(supplierComparisons))
-  }, [supplierComparisons])
-
-  useEffect(() => {
-    localStorage.setItem('prism_approvals', JSON.stringify(approvals))
-  }, [approvals])
-
-  useEffect(() => {
-    localStorage.setItem('prism_supplier_risk_data', JSON.stringify(supplierRiskData))
-  }, [supplierRiskData])
-
-  useEffect(() => {
-    localStorage.setItem('prism_risk_recommendations', JSON.stringify(riskRecommendations))
-  }, [riskRecommendations])
-
-  useEffect(() => {
-    localStorage.setItem('prism_risk_response_history', JSON.stringify(riskResponseHistory))
-  }, [riskResponseHistory])
+    if (localStorage.getItem('mycelia_access_token')) {
+      me().then(user => setCurrentUser(normalizeUser(user))).then(refreshData).catch(() => clearAuthentication())
+    }
+  }, [refreshData])
 
   // Actions
-  const login = (user) => {
-    setCurrentUser(user)
+  const login = async (username, password) => {
+    const user = await authenticate(username, password)
+    setCurrentUser(normalizeUser(user))
+    await refreshData()
+    return user
   }
 
   const logout = () => {
     setCurrentUser(null)
-    localStorage.removeItem('prism_user')
+    clearAuthentication()
   }
 
-  const updateRequirementStatus = (requirementId, status) => {
-    setRequirements(prev =>
-      prev.map(req =>
-        req.id === requirementId ? { ...req, status } : req
-      )
-    )
-  }
+  const updateRequirementStatus = () => refreshData()
 
-  const createRFQ = (rfqData) => {
-    const newRFQ = {
-      id: `RFQ-${String(rfqs.length + 1).padStart(3, '0')}`,
-      ...rfqData,
-      status: 'rfq_created',
-      createdAt: new Date().toISOString(),
-      sentTo: [],
-      viewedBy: [],
-    }
-    setRFQs(prev => [...prev, newRFQ])
-    
-    // Update requirement status
-    updateRequirementStatus(rfqData.requirementId, 'rfq_created')
-    
+  const createRFQ = async (rfqData) => {
+    const newRFQ = await createRfqRequest({
+      requirement_id: rfqData.requirementId || null,
+      quotation_deadline: new Date(rfqData.quotationDeadline).toISOString(),
+      required_delivery_date: new Date(rfqData.deliveryDeadline).toISOString(),
+      evaluation_policy: rfqData.evaluationPolicy || 'Evaluate valid quotations after the deadline.',
+      expected_supplier_count: rfqData.selectedSuppliers.length,
+      minimum_valid_quotation_count: rfqData.minimumValidQuotationCount || 1,
+      supplier_ids: rfqData.selectedSuppliers,
+      items: [{ description: rfqData.component, quantity: rfqData.quantity }],
+    })
+    await refreshData()
     return newRFQ
   }
 
-  const sendRFQ = (rfqId, supplierIds) => {
-    setRFQs(prev =>
-      prev.map(rfq =>
-        rfq.id === rfqId
-          ? { ...rfq, status: 'rfq_sent', sentTo: supplierIds, sentAt: new Date().toISOString() }
-          : rfq
-      )
-    )
-    
-    // Update requirement status
-    const rfq = rfqs.find(r => r.id === rfqId)
-    if (rfq) {
-      updateRequirementStatus(rfq.requirementId, 'rfq_sent')
-    }
+  const sendRFQ = async (rfqId, supplierIds) => {
+    const result = await sendRfqRequest(rfqId, supplierIds)
+    await refreshData()
+    return result
   }
 
-  const viewRFQ = (rfqId, supplierId) => {
-    setRFQs(prev =>
-      prev.map(rfq => {
-        if (rfq.id === rfqId) {
-          const viewedBy = rfq.viewedBy || []
-          if (!viewedBy.includes(supplierId)) {
-            return { ...rfq, viewedBy: [...viewedBy, supplierId], status: 'rfq_viewed' }
-          }
-        }
-        return rfq
-      })
-    )
+  const viewRFQ = (rfqId) => getRfqResponses(rfqId)
+
+  const submitQuotation = async (quotationData) => {
+    const rfq = rfqs.find(item => item.id === quotationData.rfqId)
+    const result = await submitQuotationRequest({
+      rfq_id: quotationData.rfqId,
+      supplier_id: quotationData.supplierId,
+      unit_price: quotationData.unitPrice,
+      total_price: quotationData.totalPrice,
+      quantity: quotationData.quantity,
+      available_quantity: quotationData.availableQuantity,
+      delivery_at: new Date(Date.now() + Number(quotationData.deliveryTime || 0) * 86400000).toISOString(),
+      payment_terms: quotationData.paymentTerms || null,
+      warranty_quality: quotationData.warranty || null,
+      additional_notes: quotationData.additionalNotes || null,
+    })
+    await refreshData()
+    return { ...result, component: rfq?.component }
   }
 
-  const submitQuotation = (quotationData) => {
-    const newQuotation = {
-      id: `QUOT-${String(quotations.length + 1).padStart(3, '0')}`,
-      ...quotationData,
-      status: 'submitted',
-      submittedAt: new Date().toISOString(),
-      quotationHistory: []
-    }
-    setQuotations(prev => [...prev, newQuotation])
-    
-    // Update RFQ status
-    setRFQs(prev =>
-      prev.map(rfq =>
-        rfq.id === quotationData.rfqId
-          ? { ...rfq, status: 'quotation_submitted' }
-          : rfq
-      )
-    )
-    
-    // Update requirement status
-    const rfq = rfqs.find(r => r.id === quotationData.rfqId)
-    if (rfq) {
-      updateRequirementStatus(rfq.requirementId, 'quotation_submitted')
-    }
-    
-    return newQuotation
+  const reviseQuotation = async (quotationId, revisedData) => {
+    const existing = quotations.find(item => item.id === quotationId)
+    if (!existing) return null
+    const result = await reviseQuotationRequest(quotationId, {
+      rfq_id: existing.rfq_id || existing.rfqId,
+      supplier_id: existing.supplier_id || existing.supplierId,
+      unit_price: revisedData.unitPrice,
+      total_price: revisedData.totalPrice,
+      quantity: revisedData.quantity || existing.quantity,
+      available_quantity: revisedData.availableQuantity || existing.available_quantity,
+      delivery_at: revisedData.deliveryAt || existing.delivery_at,
+      payment_terms: revisedData.paymentTerms || existing.payment_terms,
+      warranty_quality: revisedData.warranty || existing.warranty_quality,
+      additional_notes: revisedData.additionalNotes || existing.additional_notes,
+    })
+    await refreshData()
+    return result
   }
 
-  const reviseQuotation = (quotationId, revisedData) => {
-    const existingQuotation = quotations.find(q => q.id === quotationId)
-    if (!existingQuotation) return
-
-    const revisedQuotation = {
-      ...existingQuotation,
-      ...revisedData,
-      status: 'revised',
-      revisedAt: new Date().toISOString(),
-      previousPrice: existingQuotation.unitPrice,
-      quotationHistory: [
-        ...(existingQuotation.quotationHistory || []),
-        {
-          version: (existingQuotation.quotationHistory?.length || 0) + 1,
-          unitPrice: existingQuotation.unitPrice,
-          totalPrice: existingQuotation.totalPrice,
-          deliveryTime: existingQuotation.deliveryTime,
-          submittedAt: existingQuotation.submittedAt,
-          notes: existingQuotation.supplierNotes || ''
-        }
-      ]
-    }
-
-    setQuotations(prev =>
-      prev.map(q => q.id === quotationId ? revisedQuotation : q)
-    )
-
-    return revisedQuotation
+  const selectSupplier = async (rfqId, quotationId) => {
+    const result = await selectSupplierRequest(rfqId, quotationId)
+    await refreshData()
+    return result
   }
 
-  const selectSupplier = (rfqId, quotationId) => {
-    const quotation = quotations.find(q => q.id === quotationId)
-    if (!quotation) return
-    
-    // Update quotation status
-    setQuotations(prev =>
-      prev.map(q =>
-        q.id === quotationId ? { ...q, status: 'selected' } : q
-      )
-    )
-    
-    // Update RFQ status
-    setRFQs(prev =>
-      prev.map(rfq =>
-        rfq.id === rfqId ? { ...rfq, status: 'supplier_selected', selectedQuotationId: quotationId } : rfq
-      )
-    )
-    
-    // Update requirement status
-    const rfq = rfqs.find(r => r.id === rfqId)
-    if (rfq) {
-      updateRequirementStatus(rfq.requirementId, 'supplier_selected')
-    }
-    
-    // Create approval request
-    const newApproval = {
-      id: `APR-${String(approvals.length + 1).padStart(3, '0')}`,
-      rfqId,
-      quotationId,
-      supplierId: quotation.supplierId,
-      supplierName: quotation.supplierName,
-      component: quotation.component,
-      quantity: quotation.quantity,
-      unitPrice: quotation.unitPrice,
-      totalPrice: quotation.totalPrice,
-      deliveryTime: quotation.deliveryTime,
-      expectedBudget: quotation.expectedBudget,
-      status: 'pending_finance_approval',
-      createdAt: new Date().toISOString(),
-    }
-    setApprovals(prev => [...prev, newApproval])
-    
-    // Update requirement status
-    updateRequirementStatus(rfq.requirementId, 'pending_finance_approval')
+  const approveRequest = async (approvalId) => {
+    const result = await approveRequestApi(approvalId)
+    await refreshData()
+    return result
   }
 
-  const approveRequest = (approvalId) => {
-    setApprovals(prev =>
-      prev.map(approval =>
-        approval.id === approvalId
-          ? { ...approval, status: 'approved', approvedAt: new Date().toISOString() }
-          : approval
-      )
-    )
-    
-    // Update related requirement status
-    const approval = approvals.find(a => a.id === approvalId)
-    if (approval) {
-      const rfq = rfqs.find(r => r.id === approval.rfqId)
-      if (rfq) {
-        updateRequirementStatus(rfq.requirementId, 'approved')
-      }
-    }
-  }
-
-  const rejectRequest = (approvalId, reason) => {
-    setApprovals(prev =>
-      prev.map(approval =>
-        approval.id === approvalId
-          ? { ...approval, status: 'rejected', rejectionReason: reason, rejectedAt: new Date().toISOString() }
-          : approval
-      )
-    )
-    
-    // Update related requirement status
-    const approval = approvals.find(a => a.id === approvalId)
-    if (approval) {
-      const rfq = rfqs.find(r => r.id === approval.rfqId)
-      if (rfq) {
-        updateRequirementStatus(rfq.requirementId, 'rejected')
-      }
-    }
+  const rejectRequest = async (approvalId, reason) => {
+    const result = await rejectRequestApi(approvalId, reason)
+    await refreshData()
+    return result
   }
 
   const sendFinalDecisionToSupplier = (approvalId, supplierId, message) => {
-    // Update approval to indicate decision sent
-    setApprovals(prev =>
-      prev.map(approval =>
-        approval.id === approvalId
-          ? { ...approval, decisionSent: true, decisionSentAt: new Date().toISOString(), decisionMessage: message }
-          : approval
-      )
-    )
-    
-    // Update related negotiation if exists
-    setNegotiations(prev =>
-      prev.map(neg =>
-        neg.rfqId === approvals.find(a => a.id === approvalId)?.rfqId && neg.supplierId === supplierId
-          ? { ...neg, financeStatus: 'approved', finalDecisionSent: true }
-          : neg
-      )
-    )
+    return Promise.resolve({ approvalId, supplierId, message, status: 'STAGE_2_PLACEHOLDER' })
   }
 
   const resetWorkflow = () => {
-    localStorage.removeItem('prism_user')
-    localStorage.removeItem('prism_requirements')
-    localStorage.removeItem('prism_suppliers')
-    localStorage.removeItem('prism_rfqs')
-    localStorage.removeItem('prism_quotations')
-    localStorage.removeItem('prism_negotiations')
-    localStorage.removeItem('prism_supplier_comparisons')
-    localStorage.removeItem('prism_approvals')
-    localStorage.removeItem('prism_supplier_risk_data')
-    localStorage.removeItem('prism_risk_recommendations')
-    localStorage.removeItem('prism_risk_response_history')
+    clearAuthentication()
     setCurrentUser(null)
-    setRequirements(initialRequirements)
-    setSuppliers(initialSuppliers)
-    setRFQs(initialRFQs)
-    setQuotations(initialQuotations)
-    setNegotiations(initialNegotiations)
-    setSupplierComparisons(initialSupplierComparisons)
-    setApprovals(initialApprovals)
-    setSupplierRiskData(initialSupplierRiskData)
-    setRiskRecommendations(initialRiskRecommendations)
-    setRiskResponseHistory(initialRiskResponseHistory)
+    setRequirements([])
+    setSuppliers([])
+    setRFQs([])
+    setQuotations([])
+    setApprovals([])
   }
 
   const getSupplierRiskData = (supplierId) => {
@@ -1589,6 +1498,14 @@ export const WorkflowProvider = ({ children }) => {
 
   const getRiskRecommendations = (supplierId) => {
     return riskRecommendations[supplierId] || null
+  }
+
+  const getDecisionData = (rfqId) => decisionData[rfqId] || null
+
+  const trackWorkflowExecution = async (executionId) => {
+    const execution = await getWorkflowExecution(executionId)
+    setWorkflowExecutions(previous => ({ ...previous, [executionId]: execution }))
+    return execution
   }
 
   const value = {
@@ -1605,7 +1522,10 @@ export const WorkflowProvider = ({ children }) => {
     riskRecommendations,
     riskResponseHistory,
     workflowStatuses,
-    mockUsers,
+    mockUsers: [],
+    purchaseOrders,
+    decisionData,
+    workflowExecutions,
     
     // Actions
     login,
@@ -1623,6 +1543,8 @@ export const WorkflowProvider = ({ children }) => {
     resetWorkflow,
     getSupplierRiskData,
     getRiskRecommendations,
+    getDecisionData,
+    trackWorkflowExecution,
   }
 
   return (

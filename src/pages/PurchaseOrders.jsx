@@ -5,9 +5,11 @@ import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Select } from '../components/ui/Select'
 import { Progress } from '../components/ui/Progress'
+import { useWorkflow } from '../context/WorkflowContext'
 import { FileText, Plus, Eye, Edit, Send, CheckCircle, Clock, AlertTriangle, Package, Truck, Calendar, DollarSign, Search, Filter, MoreVertical, X } from 'lucide-react'
 
 const PurchaseOrders = () => {
+  const { purchaseOrders: backendPurchaseOrders, suppliers } = useWorkflow()
   const [selectedPO, setSelectedPO] = useState(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
@@ -41,7 +43,7 @@ const PurchaseOrders = () => {
     }
   }
 
-  const purchaseOrders = [
+  const legacyPurchaseOrders = [
     {
       id: 'PO-2024-001',
       supplier: 'TechCorp Industries',
@@ -104,12 +106,26 @@ const PurchaseOrders = () => {
     },
   ]
 
+  const purchaseOrders = backendPurchaseOrders.map(po => ({
+    ...po,
+    supplier: suppliers.find(supplier => supplier.id === po.supplierId)?.name || po.supplierId,
+    items: [],
+    totalAmount: 0,
+    orderDate: po.created_at || po.createdAt,
+    expectedDelivery: '-',
+    status: po.status?.toLowerCase(),
+  }))
+
   const getStatusBadge = (status) => {
     const variants = {
       pending_acknowledgement: 'warning',
       acknowledged: 'primary',
       in_transit: 'accent',
       delivered: 'success',
+      draft: 'secondary',
+      sent: 'warning',
+      active: 'success',
+      rejected: 'danger',
       cancelled: 'danger',
     }
     const labels = {
@@ -118,6 +134,10 @@ const PurchaseOrders = () => {
       in_transit: 'In Transit',
       delivered: 'Delivered',
       cancelled: 'Cancelled',
+      draft: 'Draft',
+      sent: 'Sent',
+      active: 'Active',
+      rejected: 'Rejected',
     }
     return <Badge variant={variants[status]}>{labels[status]}</Badge>
   }

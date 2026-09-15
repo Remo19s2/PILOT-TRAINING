@@ -8,7 +8,7 @@ import { User, Building, DollarSign, Lock } from 'lucide-react'
 
 const Login = () => {
   const navigate = useNavigate()
-  const { login, mockUsers } = useWorkflow()
+  const { login } = useWorkflow()
   const [selectedRole, setSelectedRole] = useState(null)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -20,7 +20,7 @@ const Login = () => {
       icon: User,
       description: 'Manage procurement requirements, RFQs, and supplier selection',
       color: 'bg-primary-500',
-      credentials: { username: 'procurement', password: 'procurement123' }
+      username: 'procurement'
     },
     {
       id: 'supplier',
@@ -28,7 +28,7 @@ const Login = () => {
       icon: Building,
       description: 'View RFQs and submit quotations',
       color: 'bg-accent-500',
-      credentials: { username: 'supplier', password: 'supplier123' }
+      username: 'supplier'
     },
     {
       id: 'finance_approver',
@@ -36,17 +36,17 @@ const Login = () => {
       icon: DollarSign,
       description: 'Review and approve procurement requests',
       color: 'bg-success-500',
-      credentials: { username: 'finance', password: 'finance123' }
+      username: 'finance'
     },
   ]
 
   const handleRoleSelect = (role) => {
     setSelectedRole(role)
-    setUsername(role.credentials.username)
-    setPassword(role.credentials.password)
+    setUsername(role.username)
+    setPassword('')
   }
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault()
     
     if (!selectedRole) {
@@ -59,17 +59,12 @@ const Login = () => {
       return
     }
 
-    // Validate credentials against mock users
-    const validUser = mockUsers.find(
-      user => user.username === username && user.password === password && user.role === selectedRole.id
-    )
-
-    if (!validUser) {
-      alert('Invalid credentials for the selected role')
+    try {
+      await login(username, password)
+    } catch (error) {
+      alert(error.message || 'Unable to sign in')
       return
     }
-
-    login(validUser)
 
     // Redirect based on role
     switch (selectedRole.id) {
