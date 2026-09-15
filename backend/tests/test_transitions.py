@@ -9,7 +9,7 @@ from sqlalchemy.pool import StaticPool
 from app.db import Base, get_db
 from app.config import Settings
 from app.main import app
-from app.models import Role, Supplier, User, UserSupplier
+from app.models import AuditLog, Role, Supplier, User, UserSupplier, WorkflowExecution
 from app.security import hash_password
 
 engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
@@ -79,6 +79,18 @@ def test_event_creates_waiting_execution_without_sns_configuration():
     response = client.post("/api/workflows/events", headers=auth, json={"event_type": "SUPPLIER_DELAY", "priority": "HIGH", "source": {"supplier_id": str(SUPPLIER_ID)}, "context": {"reported_by": "test"}})
     assert response.status_code == 202
     assert response.json()["status"] == "WAITING_FOR_SNS"
+
+    db = TestingSession()
+    try:
+        execution_id = UUID(response.json()["id"])
+        execution = db.get(WorkflowExecution, execution_id)
+        audit = db.query(AuditLog).filter_by(execution_id=execution_id, action="WORKFLOW_REQUESTED").one()
+        assert execution is not None
+        assert audit.entity_id == execution.id
+        assert audit.execution_id == execution.id
+        assert execution.status == "WAITING_FOR_SNS"
+    finally:
+        db.close()
 
 
 def test_supplier_cannot_approve():

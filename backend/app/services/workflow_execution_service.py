@@ -22,6 +22,7 @@ class WorkflowExecutionService:
         event = ProcurementEvent(id=uuid4(), event_type=event_type, priority=priority, source_user_id=source.get("user_id") or user.id, rfq_id=source.get("rfq_id"), component_id=source.get("component_id"), supplier_id=source.get("supplier_id"), context=context)
         execution = WorkflowExecution(id=uuid4(), workflow_type="PROCUREMENT", event_type=event_type, status="QUEUED", requested_by=user.id, rfq_id=source.get("rfq_id"), component_id=source.get("component_id"), supplier_id=source.get("supplier_id"), input_payload=jsonable_encoder({"event_id": event.id, "event_type": event_type, "priority": priority, "source": source, "context": context}))
         db.add_all([event, execution])
+        db.flush()
         record_audit(db, user, "WORKFLOW_REQUESTED", "WORKFLOW_EXECUTION", execution.id, new_values={"event_type": event_type, "status": execution.status}, execution_id=execution.id)
         db.commit()
         db.refresh(execution)
