@@ -14,7 +14,7 @@ from .config import get_settings
 from .db import Base, engine
 from .dependencies import DbSession, current_user, require_roles
 from .models import Approval, DecisionRecommendation, Negotiation, NegotiationMessage, PlanningRequirement, PurchaseOrder, Quotation, Rfq, RfqItem, RfqSupplier, Role, Supplier, User, WorkflowExecution
-from .schemas import ApprovalReject, DecisionAction, LoginRequest, NegotiationAuthorization, NegotiationDraftRequest, ProcurementEventIn, PurchaseOrderAcknowledgement, PurchaseOrderCreate, PurchaseOrderOut, QuotationCreate, QuotationOut, RefreshRequest, RfqCreate, RfqOut, RfqSend, SessionOut, SupplierSelection, UserOut, WorkflowExecutionOut
+from .schemas import ApprovalReject, DecisionAction, LoginRequest, NegotiationAuthorization, NegotiationDraftRequest, ProcurementEventIn, PurchaseOrderAcknowledgement, PurchaseOrderCreate, PurchaseOrderOut, QuotationCreate, QuotationOut, RefreshRequest, RfqCreate, RfqOut, RfqSend, SessionOut, SnsWebhookIn, SupplierSelection, UserOut, WorkflowExecutionOut
 from .security import create_access_token, create_refresh_token, decode_token, hash_password, verify_password
 from .services.decision_service import DecisionService
 from .services.negotiation_service import NegotiationService
@@ -117,10 +117,23 @@ async def sns_webhook(request: Request, db: DbSession) -> WorkflowExecutionOut:
         payload = await request.json()
     except ValueError as error:
         raise HTTPException(status_code=400, detail="Malformed webhook JSON") from error
-    execution_id = payload.get("execution_id")
-    if not execution_id:
-        raise HTTPException(status_code=422, detail="Webhook execution_id is required")
-    execution = db.scalar(select(WorkflowExecution).where(WorkflowExecution.sns_execution_id == str(execution_id)).with_for_update())
+    webhook = SnsWebhookIn.model_validate(payload)
+    if webhook.sns_execution_id:
+        execution = db.scalar(select(WorkflowExecution).where(WorkflowExecution.sns_execution_id == webhook.sns_execution_id).with_for_update())
+    elif webhook.prism_execution_id:
+        execution = db.get(WorkflowExecution, webhook.prism_execution_id)
+    elif webhook.execution_id:
+        sns_execution = db.scalar(select(WorkflowExecution).where(WorkflowExecution.sns_execution_id == str(webhook.execution_id)).with_for_update())
+        prism_execution = None
+        try:
+            prism_execution = db.get(WorkflowExecution, UUID(str(webhook.execution_id)))
+        except ValueError:
+            pass
+        if sns_execution and prism_execution and sns_execution.id != prism_execution.id:
+            raise HTTPException(status_code=422, detail="Webhook execution_id is ambiguous")
+        execution = sns_execution or prism_execution
+    else:
+        raise HTTPException(status_code=422, detail="Webhook correlation ID is required")
     if not execution:
         raise HTTPException(status_code=404, detail="Unknown SNS execution")
     if execution.status in {"COMPLETED", "FAILED"}:

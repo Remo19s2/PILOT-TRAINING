@@ -60,7 +60,7 @@ Negotiation: `GET /api/negotiations`, `POST /api/negotiations/draft`, and `POST 
 
 Purchase orders: `GET /api/purchase-orders`, `GET /api/purchase-orders/{po_id}`, `POST /api/purchase-orders`, `POST /api/purchase-orders/{po_id}/send`, and `POST /api/purchase-orders/{po_id}/acknowledge`.
 
-SNS-specific details are intentionally not assumed. Configure `SNS_EXECUTION_URL_TEMPLATE` to the actual Workbench execution endpoint format supplied by SNS, plus workflow IDs, webhook secret, and `SNS_WEBHOOK_SIGNATURE_HEADER`. Without it, workflow requests remain `WAITING_FOR_SNS`. The callback URL is `POST https://<fastapi-domain>/api/sns/webhook`; confirm the actual Workbench signature and payload contract before deployment.
+SNS-specific details are intentionally not assumed. Configure `SNS_EXECUTION_URL_TEMPLATE` to the actual Workbench execution endpoint format supplied by SNS, plus workflow IDs, webhook secret, and `SNS_WEBHOOK_SIGNATURE_HEADER`. Without it, workflow requests remain `WAITING_FOR_SNS`. The callback URL is `POST https://<fastapi-domain>/api/sns/webhook`; callbacks should include `prism_execution_id` and may include `sns_execution_id`, along with the callback status and output payload. Legacy `execution_id` is supported only when it identifies one execution unambiguously.
 
 ## Tests
 

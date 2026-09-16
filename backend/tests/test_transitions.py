@@ -99,20 +99,21 @@ def test_event_creates_waiting_execution_without_sns_configuration():
 
 
 def test_sns_webhook_accepts_correct_hmac_signature(monkeypatch):
-    execution_id = "sns-webhook-hmac"
+    sns_execution_id = "sns-webhook-hmac"
     db = TestingSession()
-    db.add(WorkflowExecution(id=uuid4(), workflow_type="PROCUREMENT", event_type="SUPPLIER_DELAY", status="WAITING_FOR_SNS", sns_execution_id=execution_id, input_payload={}))
+    db.add(WorkflowExecution(id=uuid4(), workflow_type="PROCUREMENT", event_type="SUPPLIER_DELAY", status="WAITING_FOR_SNS", sns_execution_id=sns_execution_id, input_payload={}))
     db.commit()
     db.close()
 
     settings = Settings(sns_webhook_secret="webhook-secret", sns_webhook_auth_mode="hmac")
     monkeypatch.setattr(main_module, "settings", settings)
-    body = (f'{{"execution_id":"{execution_id}"}}').encode()
+    body = (f'{{"sns_execution_id":"{sns_execution_id}","status":"COMPLETED","output_payload":{{"source":"sns"}}}}').encode()
     signature = hmac.new(b"webhook-secret", body, hashlib.sha256).hexdigest()
 
     response = client.post("/api/sns/webhook", content=body, headers={"X-SNS-Signature": signature})
 
     assert response.status_code == 200
+    assert response.json()["status"] == "COMPLETED"
 
 
 def test_sns_webhook_rejects_incorrect_hmac_signature(monkeypatch):
@@ -156,6 +157,48 @@ def test_sns_webhook_rejects_missing_header(monkeypatch):
     response = client.post("/api/sns/webhook", content=b'{"execution_id":"missing"}')
 
     assert response.status_code == 401
+
+
+def test_sns_webhook_callback_correlates_by_prism_execution_id(monkeypatch):
+    prism_execution_id = uuid4()
+    db = TestingSession()
+    db.add(WorkflowExecution(id=prism_execution_id, workflow_type="PROCUREMENT", event_type="SUPPLIER_DELAY", status="WAITING_FOR_SNS", input_payload={}))
+    db.commit()
+    db.close()
+
+    settings = Settings(sns_webhook_secret="webhook-secret", sns_webhook_auth_mode="shared_secret", sns_webhook_signature_header="X-SNS-Webhook-Secret")
+    monkeypatch.setattr(main_module, "settings", settings)
+    body = (f'{{"prism_execution_id":"{prism_execution_id}","status":"COMPLETED","output_payload":{{"test":true}}}}').encode()
+
+    response = client.post("/api/sns/webhook", content=body, headers={"X-SNS-Webhook-Secret": "webhook-secret"})
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "COMPLETED"
+    db = TestingSession()
+    try:
+        assert db.get(WorkflowExecution, prism_execution_id).output_payload["output_payload"] == {"test": True}
+    finally:
+        db.close()
+
+
+def test_sns_webhook_callback_rejects_unknown_correlation_id(monkeypatch):
+    settings = Settings(sns_webhook_secret="webhook-secret", sns_webhook_auth_mode="shared_secret", sns_webhook_signature_header="X-SNS-Webhook-Secret")
+    monkeypatch.setattr(main_module, "settings", settings)
+    body = b'{"prism_execution_id":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"}'
+
+    response = client.post("/api/sns/webhook", content=body, headers={"X-SNS-Webhook-Secret": "webhook-secret"})
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Unknown SNS execution"
+
+
+def test_sns_webhook_callback_rejects_missing_correlation_id(monkeypatch):
+    settings = Settings(sns_webhook_secret="webhook-secret", sns_webhook_auth_mode="shared_secret", sns_webhook_signature_header="X-SNS-Webhook-Secret")
+    monkeypatch.setattr(main_module, "settings", settings)
+
+    response = client.post("/api/sns/webhook", content=b'{"status":"COMPLETED"}', headers={"X-SNS-Webhook-Secret": "webhook-secret"})
+
+    assert response.status_code == 422
 
 
 def test_sns_ack_without_execution_id_keeps_prism_correlation_id_and_waits_for_sns():

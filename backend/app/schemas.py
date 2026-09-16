@@ -120,6 +120,13 @@ class ProcurementEventIn(BaseModel):
     context: dict = Field(default_factory=dict)
 
 
+class SnsWebhookIn(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    prism_execution_id: UUID | None = None
+    sns_execution_id: str | None = None
+    execution_id: str | UUID | None = None
+
+
 class WorkflowExecutionOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
