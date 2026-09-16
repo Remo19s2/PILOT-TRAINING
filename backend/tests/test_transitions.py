@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta, timezone
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, select
@@ -11,6 +11,8 @@ from app.config import Settings
 from app.main import app
 from app.models import AuditLog, Role, Supplier, User, UserSupplier, WorkflowExecution
 from app.security import hash_password
+from app.services.sns.exceptions import SnsResponseError
+from app.services.workflow_execution_service import WorkflowExecutionService
 
 engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
 TestingSession = sessionmaker(bind=engine, expire_on_commit=False)
@@ -89,6 +91,85 @@ def test_event_creates_waiting_execution_without_sns_configuration():
         assert audit.entity_id == execution.id
         assert audit.execution_id == execution.id
         assert execution.status == "WAITING_FOR_SNS"
+    finally:
+        db.close()
+
+
+def test_sns_ack_without_execution_id_keeps_prism_correlation_id_and_waits_for_sns():
+    db = TestingSession()
+    try:
+        user = db.get(User, PROCUREMENT_USER_ID)
+        prism_execution_id = uuid4()
+        execution = WorkflowExecution(
+            id=prism_execution_id,
+            workflow_type="PROCUREMENT",
+            event_type="SUPPLIER_DELAY",
+            status="QUEUED",
+            requested_by=user.id,
+            input_payload={"event_id": "event-1"},
+        )
+        db.add(execution)
+        db.commit()
+
+        service = WorkflowExecutionService(Settings(sns_master_workflow_id="master-workflow"))
+        service.sns.start = lambda workflow_id, payload, execution_id: {
+            "execution_id": None,
+            "status": None,
+            "raw": {},
+        }
+        result = service.dispatch(db, user, execution)
+
+        assert result.id == prism_execution_id
+        assert result.status == "WAITING_FOR_SNS"
+        assert result.sns_execution_id is None
+        assert result.input_payload == {"event_id": "event-1"}
+    finally:
+        db.close()
+
+
+def test_sns_execution_id_is_stored_when_returned():
+    db = TestingSession()
+    try:
+        user = db.get(User, PROCUREMENT_USER_ID)
+        execution = WorkflowExecution(id=uuid4(), workflow_type="PROCUREMENT", event_type="SUPPLIER_DELAY", status="QUEUED", requested_by=user.id, input_payload={})
+        db.add(execution)
+        db.commit()
+
+        service = WorkflowExecutionService(Settings(sns_master_workflow_id="master-workflow"))
+        service.sns.start = lambda workflow_id, payload, execution_id: {
+            "execution_id": "sns-execution-1",
+            "status": "started",
+            "raw": {"execution_id": "sns-execution-1"},
+        }
+        result = service.dispatch(db, user, execution)
+
+        assert result.status == "WAITING_FOR_SNS"
+        assert result.sns_execution_id == "sns-execution-1"
+    finally:
+        db.close()
+
+
+def test_sns_dispatch_error_marks_execution_failed():
+    db = TestingSession()
+    try:
+        user = db.get(User, PROCUREMENT_USER_ID)
+        execution = WorkflowExecution(
+            id=uuid4(),
+            workflow_type="PROCUREMENT",
+            event_type="SUPPLIER_DELAY",
+            status="QUEUED",
+            requested_by=user.id,
+            input_payload={},
+        )
+        db.add(execution)
+        db.commit()
+
+        service = WorkflowExecutionService(Settings(sns_master_workflow_id="master-workflow"))
+        service.sns.start = lambda workflow_id, payload, execution_id: (_ for _ in ()).throw(SnsResponseError("server error"))
+        result = service.dispatch(db, user, execution)
+
+        assert result.status == "FAILED"
+        assert result.error_message == "server error"
     finally:
         db.close()
 

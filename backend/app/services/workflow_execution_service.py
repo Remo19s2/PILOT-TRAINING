@@ -39,7 +39,8 @@ class WorkflowExecutionService:
         try:
             result = self.sns.start(self.settings.sns_master_workflow_id, execution.input_payload, str(execution.id))
             execution.sns_workflow_id = self.settings.sns_master_workflow_id
-            execution.sns_execution_id = result["execution_id"]
+            if result.get("execution_id"):
+                execution.sns_execution_id = result["execution_id"]
             execution.status = "WAITING_FOR_SNS"
             record_audit(db, user, "SNS_EXECUTION_STARTED", "WORKFLOW_EXECUTION", execution.id, new_values=result, execution_id=execution.id)
         except SnsIntegrationError as error:

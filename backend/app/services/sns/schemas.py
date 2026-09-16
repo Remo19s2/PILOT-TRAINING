@@ -8,6 +8,6 @@ class SnsExecutionRequest(BaseModel):
 
 
 class SnsExecutionResponse(BaseModel):
-    execution_id: str
+    execution_id: str | None = None
     status: str | None = None
     raw: dict = Field(default_factory=dict)

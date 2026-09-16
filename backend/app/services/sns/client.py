@@ -27,11 +27,12 @@ class SnsClient:
             response = httpx.post(url, headers=headers, json={"callback_url": request.callback_url, "payload": request.payload}, timeout=self.settings.sns_timeout_seconds)
             logger.info("SNS request completed with status=%s", response.status_code)
             response.raise_for_status()
-            data = response.json()
-        except (httpx.HTTPError, ValueError) as error:
+        except httpx.HTTPError as error:
             raise SnsResponseError(f"SNS execution request failed: {error}") from error
+        try:
+            data = response.json()
+        except ValueError:
+            data = {}
         logger.info("SNS response received with fields=%s", sorted(data) if isinstance(data, dict) else [])
         execution_id = data.get("execution_id") if isinstance(data, dict) else None
-        if not execution_id:
-            raise SnsResponseError("SNS response did not contain execution_id")
-        return SnsExecutionResponse(execution_id=str(execution_id), status=data.get("status"), raw=data)
+        return SnsExecutionResponse(execution_id=str(execution_id) if execution_id else None, status=data.get("status") if isinstance(data, dict) else None, raw=data if isinstance(data, dict) else {})
