@@ -25,6 +25,8 @@ class SnsAdapter:
             return False
         if not signature:
             return False
+        if self.settings.sns_webhook_auth_mode == "shared_secret":
+            return hmac.compare_digest(secret, signature)
         expected = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
         return hmac.compare_digest(expected, signature)
 

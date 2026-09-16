@@ -1,4 +1,6 @@
 from datetime import datetime, timedelta, timezone
+import hashlib
+import hmac
 from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
@@ -8,6 +10,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.db import Base, get_db
 from app.config import Settings
+from app import main as main_module
 from app.main import app
 from app.models import AuditLog, Role, Supplier, User, UserSupplier, WorkflowExecution
 from app.security import hash_password
@@ -93,6 +96,66 @@ def test_event_creates_waiting_execution_without_sns_configuration():
         assert execution.status == "WAITING_FOR_SNS"
     finally:
         db.close()
+
+
+def test_sns_webhook_accepts_correct_hmac_signature(monkeypatch):
+    execution_id = "sns-webhook-hmac"
+    db = TestingSession()
+    db.add(WorkflowExecution(id=uuid4(), workflow_type="PROCUREMENT", event_type="SUPPLIER_DELAY", status="WAITING_FOR_SNS", sns_execution_id=execution_id, input_payload={}))
+    db.commit()
+    db.close()
+
+    settings = Settings(sns_webhook_secret="webhook-secret", sns_webhook_auth_mode="hmac")
+    monkeypatch.setattr(main_module, "settings", settings)
+    body = (f'{{"execution_id":"{execution_id}"}}').encode()
+    signature = hmac.new(b"webhook-secret", body, hashlib.sha256).hexdigest()
+
+    response = client.post("/api/sns/webhook", content=body, headers={"X-SNS-Signature": signature})
+
+    assert response.status_code == 200
+
+
+def test_sns_webhook_rejects_incorrect_hmac_signature(monkeypatch):
+    settings = Settings(sns_webhook_secret="webhook-secret", sns_webhook_auth_mode="hmac")
+    monkeypatch.setattr(main_module, "settings", settings)
+
+    response = client.post("/api/sns/webhook", content=b'{"execution_id":"missing"}', headers={"X-SNS-Signature": "invalid"})
+
+    assert response.status_code == 401
+
+
+def test_sns_webhook_accepts_correct_shared_secret(monkeypatch):
+    execution_id = "sns-webhook-shared-secret"
+    db = TestingSession()
+    db.add(WorkflowExecution(id=uuid4(), workflow_type="PROCUREMENT", event_type="SUPPLIER_DELAY", status="WAITING_FOR_SNS", sns_execution_id=execution_id, input_payload={}))
+    db.commit()
+    db.close()
+
+    settings = Settings(sns_webhook_secret="webhook-secret", sns_webhook_auth_mode="shared_secret", sns_webhook_signature_header="X-SNS-Webhook-Secret")
+    monkeypatch.setattr(main_module, "settings", settings)
+    body = (f'{{"execution_id":"{execution_id}"}}').encode()
+
+    response = client.post("/api/sns/webhook", content=body, headers={"X-SNS-Webhook-Secret": "webhook-secret"})
+
+    assert response.status_code == 200
+
+
+def test_sns_webhook_rejects_incorrect_shared_secret(monkeypatch):
+    settings = Settings(sns_webhook_secret="webhook-secret", sns_webhook_auth_mode="shared_secret", sns_webhook_signature_header="X-SNS-Webhook-Secret")
+    monkeypatch.setattr(main_module, "settings", settings)
+
+    response = client.post("/api/sns/webhook", content=b'{"execution_id":"missing"}', headers={"X-SNS-Webhook-Secret": "invalid"})
+
+    assert response.status_code == 401
+
+
+def test_sns_webhook_rejects_missing_header(monkeypatch):
+    settings = Settings(sns_webhook_secret="webhook-secret", sns_webhook_auth_mode="shared_secret", sns_webhook_signature_header="X-SNS-Webhook-Secret")
+    monkeypatch.setattr(main_module, "settings", settings)
+
+    response = client.post("/api/sns/webhook", content=b'{"execution_id":"missing"}')
+
+    assert response.status_code == 401
 
 
 def test_sns_ack_without_execution_id_keeps_prism_correlation_id_and_waits_for_sns():

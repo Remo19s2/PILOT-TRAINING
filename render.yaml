@@ -34,4 +34,6 @@ services:
       - key: SNS_WEBHOOK_SECRET
         sync: false
       - key: SNS_WEBHOOK_SIGNATURE_HEADER
-        value: X-SNS-Signature
+        value: X-SNS-Webhook-Secret
+      - key: SNS_WEBHOOK_AUTH_MODE
+        value: shared_secret

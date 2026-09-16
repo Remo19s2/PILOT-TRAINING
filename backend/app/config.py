@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     sns_callback_url: str | None = None
     sns_webhook_secret: str | None = None
     sns_webhook_signature_header: str = "X-SNS-Signature"
+    sns_webhook_auth_mode: Literal["hmac", "shared_secret"] = "hmac"
     sns_timeout_seconds: float = 15.0
     sns_execution_url_template: str | None = None
 
