@@ -6,14 +6,16 @@ import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Badge } from '../components/ui/Badge'
 import { ArrowLeft, MessageSquare, CheckCircle, X, Send, Clock, AlertTriangle, User, Building } from 'lucide-react'
+import { postNegotiationMessage } from '../api/negotiations'
 
 const SupplierNegotiations = () => {
   const navigate = useNavigate()
   const { negotiationId } = useParams()
-  const { negotiations, currentUser } = useWorkflow()
+  const { negotiations, currentUser, refreshData } = useWorkflow()
   
   const [selectedNegotiation, setSelectedNegotiation] = useState(null)
   const [showResponseForm, setShowResponseForm] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [responseData, setResponseData] = useState({
     response: '',
     proposedPrice: '',
@@ -22,7 +24,7 @@ const SupplierNegotiations = () => {
   })
 
   const supplierId = currentUser?.id || 'SUP-001'
-  const myNegotiations = negotiations.filter(n => n.supplierId === supplierId)
+  const myNegotiations = negotiations.filter(n => !n.supplierId || n.supplierId === supplierId || n.supplierId === currentUser?.supplier_id)
   
   // If negotiationId is provided, select that negotiation
   if (negotiationId && !selectedNegotiation) {
@@ -66,46 +68,97 @@ const SupplierNegotiations = () => {
     navigate('/supplier-negotiations')
   }
 
-  const handleAcceptOffer = () => {
-    if (!selectedNegotiation) return
-    
-    // In a real app, this would update the negotiation state
-    alert('Offer accepted successfully!')
-    setSelectedNegotiation({
-      ...selectedNegotiation,
-      status: 'deal_agreed',
-      dealStatus: 'agreed',
-      finalAgreedPrice: selectedNegotiation.currentOffer,
-      finalDelivery: selectedNegotiation.deliveryRequirement
-    })
-  }
-
-  const handleDeclineOffer = () => {
-    if (!selectedNegotiation) return
-    
-    if (confirm('Are you sure you want to decline this offer?')) {
-      alert('Offer declined.')
-      setSelectedNegotiation({
-        ...selectedNegotiation,
-        status: 'deal_declined',
-        dealStatus: 'declined'
-      })
+  const handleAcceptOffer = async () => {
+    if (!selectedNegotiation || isSubmitting) return
+    setIsSubmitting(true)
+    try {
+      const message = await postNegotiationMessage(selectedNegotiation.id, 'Supplier accepted the offer terms.')
+      const newHistoryItem = {
+        id: message.id || `NH-${Date.now()}`,
+        participant: 'supplier',
+        message: message.content || 'Supplier accepted the offer terms.',
+        timestamp: message.created_at ? new Date(message.created_at).toLocaleString() : new Date().toLocaleString(),
+      }
+      setSelectedNegotiation(current => ({
+        ...current,
+        status: 'deal_agreed',
+        dealStatus: 'agreed',
+        finalAgreedPrice: current.currentOffer,
+        finalDelivery: current.deliveryRequirement,
+        negotiationHistory: [...(current.negotiationHistory || []), newHistoryItem]
+      }))
+      refreshData?.()
+      alert('Offer accepted successfully!')
+    } catch (err) {
+      alert(`Failed to accept offer: ${err.message || 'Network error'}`)
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
-  const handleSendCounterOffer = () => {
-    if (!selectedNegotiation) return
-    
-    // In a real app, this would update the negotiation state
-    alert('Counter-offer sent successfully!')
-    setSelectedNegotiation({
-      ...selectedNegotiation,
-      status: 'negotiation_active',
-      currentOffer: parseFloat(responseData.proposedPrice) || selectedNegotiation.currentOffer,
-      deliveryRequirement: parseInt(responseData.deliveryDays) || selectedNegotiation.deliveryRequirement
-    })
-    setShowResponseForm(false)
-    setResponseData({ response: '', proposedPrice: '', deliveryDays: '', message: '' })
+  const handleDeclineOffer = async () => {
+    if (!selectedNegotiation || isSubmitting) return
+    if (!confirm('Are you sure you want to decline this offer?')) return
+
+    setIsSubmitting(true)
+    try {
+      const message = await postNegotiationMessage(selectedNegotiation.id, 'Supplier declined the offer.')
+      const newHistoryItem = {
+        id: message.id || `NH-${Date.now()}`,
+        participant: 'supplier',
+        message: message.content || 'Supplier declined the offer.',
+        timestamp: message.created_at ? new Date(message.created_at).toLocaleString() : new Date().toLocaleString(),
+      }
+      setSelectedNegotiation(current => ({
+        ...current,
+        status: 'deal_declined',
+        dealStatus: 'declined',
+        negotiationHistory: [...(current.negotiationHistory || []), newHistoryItem]
+      }))
+      refreshData?.()
+      alert('Offer declined.')
+    } catch (err) {
+      alert(`Failed to decline offer: ${err.message || 'Network error'}`)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleSendCounterOffer = async () => {
+    if (!selectedNegotiation || isSubmitting) return
+    setIsSubmitting(true)
+    try {
+      const parts = []
+      if (responseData.proposedPrice) parts.push(`Proposed Price: ₹${responseData.proposedPrice}/unit`)
+      if (responseData.deliveryDays) parts.push(`Delivery Timeline: ${responseData.deliveryDays} days`)
+      if (responseData.message) parts.push(responseData.message)
+      const content = parts.join(' | ') || `Counter-offer of ₹${responseData.proposedPrice || selectedNegotiation.currentOffer}/unit`
+
+      const message = await postNegotiationMessage(selectedNegotiation.id, content)
+      const newHistoryItem = {
+        id: message.id || `NH-${Date.now()}`,
+        participant: 'supplier',
+        message: message.content || content,
+        price: parseFloat(responseData.proposedPrice) || undefined,
+        timestamp: message.created_at ? new Date(message.created_at).toLocaleString() : new Date().toLocaleString(),
+      }
+
+      setSelectedNegotiation(current => ({
+        ...current,
+        status: 'counter_offer_received',
+        currentOffer: parseFloat(responseData.proposedPrice) || current.currentOffer,
+        deliveryRequirement: parseInt(responseData.deliveryDays) || current.deliveryRequirement,
+        negotiationHistory: [...(current.negotiationHistory || []), newHistoryItem]
+      }))
+      setShowResponseForm(false)
+      setResponseData({ response: '', proposedPrice: '', deliveryDays: '', message: '' })
+      refreshData?.()
+      alert('Counter-offer sent successfully!')
+    } catch (err) {
+      alert(`Failed to send counter-offer: ${err.message || 'Network error'}`)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   // List View

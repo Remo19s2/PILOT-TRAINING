@@ -1,0 +1,582 @@
+{
+  "passed_pages": [
+    {
+      "role": "Procurement Manager",
+      "route": "/procurement-dashboard"
+    },
+    {
+      "role": "Procurement Manager",
+      "route": "/planning-insights"
+    },
+    {
+      "role": "Procurement Manager",
+      "route": "/create-rfq"
+    },
+    {
+      "role": "Procurement Manager",
+      "route": "/rfqs"
+    },
+    {
+      "role": "Procurement Manager",
+      "route": "/negotiation-center"
+    },
+    {
+      "role": "Procurement Manager",
+      "route": "/risk-analysis"
+    },
+    {
+      "role": "Procurement Manager",
+      "route": "/approval-status"
+    },
+    {
+      "role": "Procurement Manager",
+      "route": "/purchase-orders"
+    },
+    {
+      "role": "Procurement Manager",
+      "route": "/monitoring-alerts"
+    },
+    {
+      "role": "Procurement Manager",
+      "route": "/reports"
+    },
+    {
+      "role": "Procurement Manager",
+      "route": "/suppliers"
+    },
+    {
+      "role": "Supplier",
+      "route": "/supplier-dashboard"
+    },
+    {
+      "role": "Supplier",
+      "route": "/new-rfqs"
+    },
+    {
+      "role": "Supplier",
+      "route": "/submitted-quotations"
+    },
+    {
+      "role": "Supplier",
+      "route": "/supplier-negotiations"
+    },
+    {
+      "role": "Supplier",
+      "route": "/final-decisions"
+    },
+    {
+      "role": "Supplier",
+      "route": "/supplier-alerts"
+    },
+    {
+      "role": "Finance Approver",
+      "route": "/finance-dashboard"
+    },
+    {
+      "role": "Finance Approver",
+      "route": "/pending-approvals"
+    },
+    {
+      "role": "Finance Approver",
+      "route": "/approved-requests"
+    },
+    {
+      "role": "Finance Approver",
+      "route": "/rejected-requests"
+    },
+    {
+      "role": "Finance Approver",
+      "route": "/finance-reports"
+    }
+  ],
+  "failed_pages": [],
+  "console_errors": [],
+  "page_details": [
+    {
+      "role": "Procurement Manager",
+      "route": "/procurement-dashboard",
+      "headings": [
+        "PRISM",
+        "Procurement Manager Dashboard",
+        "Requirements by Category",
+        "Requirements by Priority"
+      ],
+      "button_count": 12,
+      "buttons": [
+        "Open sidebar",
+        "[Icon Only]",
+        "Notifications",
+        "U  User  Guest",
+        "Planning & Inventory  Review requirements",
+        "Create RFQ  Send to suppliers",
+        "Negotiation Center  Manage negotiations",
+        "Finance Approvals  Review approvals",
+        "Recommendations  Risk response",
+        "Monitoring & Alerts  View alerts",
+        "Orders  View orders",
+        "Reports  View analytics"
+      ],
+      "tables": 0,
+      "cards": 29
+    },
+    {
+      "role": "Procurement Manager",
+      "route": "/planning-insights",
+      "headings": [
+        "PRISM",
+        "Planning & Inventory Insights"
+      ],
+      "button_count": 4,
+      "buttons": [
+        "Open sidebar",
+        "[Icon Only]",
+        "Notifications",
+        "U  User  Guest"
+      ],
+      "tables": 0,
+      "cards": 1
+    },
+    {
+      "role": "Procurement Manager",
+      "route": "/create-rfq",
+      "headings": [
+        "PRISM",
+        "Create RFQ",
+        "RFQ Details",
+        "RFQ Summary"
+      ],
+      "button_count": 6,
+      "buttons": [
+        "Open sidebar",
+        "[Icon Only]",
+        "Notifications",
+        "U  User  Guest",
+        "Planning & Inventory",
+        "Next: Select Suppliers"
+      ],
+      "tables": 0,
+      "cards": 11
+    },
+    {
+      "role": "Procurement Manager",
+      "route": "/rfqs",
+      "headings": [
+        "PRISM",
+        "RFQs & Quotations"
+      ],
+      "button_count": 6,
+      "buttons": [
+        "Open sidebar",
+        "[Icon Only]",
+        "Notifications",
+        "U  User  Guest",
+        "Create RFQ",
+        "Create First RFQ"
+      ],
+      "tables": 0,
+      "cards": 2
+    },
+    {
+      "role": "Procurement Manager",
+      "route": "/negotiation-center",
+      "headings": [
+        "PRISM",
+        "Negotiation Center",
+        "Active Negotiations"
+      ],
+      "button_count": 4,
+      "buttons": [
+        "Open sidebar",
+        "[Icon Only]",
+        "Notifications",
+        "U  User  Guest"
+      ],
+      "tables": 0,
+      "cards": 2
+    },
+    {
+      "role": "Procurement Manager",
+      "route": "/risk-analysis",
+      "headings": [
+        "PRISM",
+        "Supplier Risk Analysis"
+      ],
+      "button_count": 8,
+      "buttons": [
+        "Open sidebar",
+        "[Icon Only]",
+        "Notifications",
+        "U  User  Guest",
+        "All",
+        "Electronics",
+        "Raw Materials",
+        "Hardware"
+      ],
+      "tables": 0,
+      "cards": 1
+    },
+    {
+      "role": "Procurement Manager",
+      "route": "/approval-status",
+      "headings": [
+        "PRISM",
+        "Finance Approvals",
+        "Approval Requests"
+      ],
+      "button_count": 4,
+      "buttons": [
+        "Open sidebar",
+        "[Icon Only]",
+        "Notifications",
+        "U  User  Guest"
+      ],
+      "tables": 0,
+      "cards": 3
+    },
+    {
+      "role": "Procurement Manager",
+      "route": "/purchase-orders",
+      "headings": [
+        "PRISM",
+        "Purchase Orders",
+        "Purchase Orders"
+      ],
+      "button_count": 5,
+      "buttons": [
+        "Open sidebar",
+        "[Icon Only]",
+        "Notifications",
+        "U  User  Guest",
+        "Create Purchase Order"
+      ],
+      "tables": 1,
+      "cards": 10
+    },
+    {
+      "role": "Procurement Manager",
+      "route": "/monitoring-alerts",
+      "headings": [
+        "PRISM",
+        "Monitoring & Alerts",
+        "Monitoring Health by Category",
+        "Alert Trend (Last 6 Days)"
+      ],
+      "button_count": 33,
+      "buttons": [
+        "Open sidebar",
+        "[Icon Only]",
+        "Notifications",
+        "U  User  Guest",
+        "Refresh",
+        "Trigger Re-Analysis",
+        "More Filters",
+        "View Details",
+        "Take Action",
+        "Snooze",
+        "Acknowledge",
+        "Resolve",
+        "View Details",
+        "Take Action",
+        "Snooze"
+      ],
+      "tables": 0,
+      "cards": 33
+    },
+    {
+      "role": "Procurement Manager",
+      "route": "/reports",
+      "headings": [
+        "PRISM",
+        "Procurement Reports",
+        "Quick Reports",
+        "Monthly Spend vs Budget"
+      ],
+      "button_count": 14,
+      "buttons": [
+        "Open sidebar",
+        "[Icon Only]",
+        "Notifications",
+        "U  User  Guest",
+        "Export Report",
+        "Spend by Category Analyze spending across categories",
+        "Supplier Performance Review supplier metrics",
+        "Budget vs Actual Compare budget to actual spend",
+        "Savings Analysis Track procurement savings",
+        "Filter",
+        "Download",
+        "Download",
+        "Download",
+        "Download"
+      ],
+      "tables": 0,
+      "cards": 18
+    },
+    {
+      "role": "Procurement Manager",
+      "route": "/suppliers",
+      "headings": [
+        "PRISM",
+        "Supplier Management",
+        "All Suppliers"
+      ],
+      "button_count": 10,
+      "buttons": [
+        "Open sidebar",
+        "[Icon Only]",
+        "Notifications",
+        "U  User  Guest",
+        "Add Supplier",
+        "View Details",
+        "View Details",
+        "View Details",
+        "View Details",
+        "View Details"
+      ],
+      "tables": 1,
+      "cards": 5
+    },
+    {
+      "role": "Supplier",
+      "route": "/supplier-dashboard",
+      "headings": [
+        "PRISM",
+        "Supplier Dashboard",
+        "Recent RFQs",
+        "Active Negotiations"
+      ],
+      "button_count": 11,
+      "buttons": [
+        "Open sidebar",
+        "[Icon Only]",
+        "Notifications",
+        "U  User  Guest",
+        "View All",
+        "View All",
+        "View RFQs  Received requests",
+        "My Quotations  Submitted quotes",
+        "Negotiations  Active discussions",
+        "Final Decisions  Order confirmations",
+        "View All"
+      ],
+      "tables": 0,
+      "cards": 16
+    },
+    {
+      "role": "Supplier",
+      "route": "/new-rfqs",
+      "headings": [
+        "PRISM",
+        "New RFQs"
+      ],
+      "button_count": 4,
+      "buttons": [
+        "Open sidebar",
+        "[Icon Only]",
+        "Notifications",
+        "U  User  Guest"
+      ],
+      "tables": 0,
+      "cards": 2
+    },
+    {
+      "role": "Supplier",
+      "route": "/submitted-quotations",
+      "headings": [
+        "PRISM",
+        "Quotations"
+      ],
+      "button_count": 4,
+      "buttons": [
+        "Open sidebar",
+        "[Icon Only]",
+        "Notifications",
+        "U  User  Guest"
+      ],
+      "tables": 0,
+      "cards": 2
+    },
+    {
+      "role": "Supplier",
+      "route": "/supplier-negotiations",
+      "headings": [
+        "PRISM",
+        "Negotiations",
+        "Active Negotiations"
+      ],
+      "button_count": 4,
+      "buttons": [
+        "Open sidebar",
+        "[Icon Only]",
+        "Notifications",
+        "U  User  Guest"
+      ],
+      "tables": 0,
+      "cards": 1
+    },
+    {
+      "role": "Supplier",
+      "route": "/final-decisions",
+      "headings": [
+        "PRISM",
+        "Final Decisions",
+        "Final Procurement Decisions"
+      ],
+      "button_count": 4,
+      "buttons": [
+        "Open sidebar",
+        "[Icon Only]",
+        "Notifications",
+        "U  User  Guest"
+      ],
+      "tables": 0,
+      "cards": 1
+    },
+    {
+      "role": "Supplier",
+      "route": "/supplier-alerts",
+      "headings": [
+        "PRISM",
+        "Alerts",
+        "Active Alerts (0)"
+      ],
+      "button_count": 4,
+      "buttons": [
+        "Open sidebar",
+        "[Icon Only]",
+        "Notifications",
+        "U  User  Guest"
+      ],
+      "tables": 0,
+      "cards": 1
+    },
+    {
+      "role": "Finance Approver",
+      "route": "/finance-dashboard",
+      "headings": [
+        "PRISM",
+        "Finance Approver Dashboard",
+        "Recent Approval Requests",
+        "Quick Actions"
+      ],
+      "button_count": 10,
+      "buttons": [
+        "Open sidebar",
+        "[Icon Only]",
+        "Notifications",
+        "U  User  Guest",
+        "View All",
+        "Pending Approvals  0 requests awaiting review",
+        "Approved Requests  0 approved requests",
+        "Rejected Requests  0 rejected requests",
+        "Procurement Details  View detailed procurement information",
+        "Approval History  View all past approvals"
+      ],
+      "tables": 0,
+      "cards": 16
+    },
+    {
+      "role": "Finance Approver",
+      "route": "/pending-approvals",
+      "headings": [
+        "PRISM",
+        "Finance Approver Dashboard",
+        "Recent Approval Requests",
+        "Quick Actions"
+      ],
+      "button_count": 10,
+      "buttons": [
+        "Open sidebar",
+        "[Icon Only]",
+        "Notifications",
+        "U  User  Guest",
+        "View All",
+        "Pending Approvals  0 requests awaiting review",
+        "Approved Requests  0 approved requests",
+        "Rejected Requests  0 rejected requests",
+        "Procurement Details  View detailed procurement information",
+        "Approval History  View all past approvals"
+      ],
+      "tables": 0,
+      "cards": 16
+    },
+    {
+      "role": "Finance Approver",
+      "route": "/approved-requests",
+      "headings": [
+        "PRISM",
+        "Finance Approver Dashboard",
+        "Recent Approval Requests",
+        "Quick Actions"
+      ],
+      "button_count": 10,
+      "buttons": [
+        "Open sidebar",
+        "[Icon Only]",
+        "Notifications",
+        "U  User  Guest",
+        "View All",
+        "Pending Approvals  0 requests awaiting review",
+        "Approved Requests  0 approved requests",
+        "Rejected Requests  0 rejected requests",
+        "Procurement Details  View detailed procurement information",
+        "Approval History  View all past approvals"
+      ],
+      "tables": 0,
+      "cards": 16
+    },
+    {
+      "role": "Finance Approver",
+      "route": "/rejected-requests",
+      "headings": [
+        "PRISM",
+        "Finance Approver Dashboard",
+        "Recent Approval Requests",
+        "Quick Actions"
+      ],
+      "button_count": 10,
+      "buttons": [
+        "Open sidebar",
+        "[Icon Only]",
+        "Notifications",
+        "U  User  Guest",
+        "View All",
+        "Pending Approvals  0 requests awaiting review",
+        "Approved Requests  0 approved requests",
+        "Rejected Requests  0 rejected requests",
+        "Procurement Details  View detailed procurement information",
+        "Approval History  View all past approvals"
+      ],
+      "tables": 0,
+      "cards": 16
+    },
+    {
+      "role": "Finance Approver",
+      "route": "/finance-reports",
+      "headings": [
+        "PRISM",
+        "Procurement Reports",
+        "Quick Reports",
+        "Monthly Spend vs Budget"
+      ],
+      "button_count": 14,
+      "buttons": [
+        "Open sidebar",
+        "[Icon Only]",
+        "Notifications",
+        "U  User  Guest",
+        "Export Report",
+        "Spend by Category Analyze spending across categories",
+        "Supplier Performance Review supplier metrics",
+        "Budget vs Actual Compare budget to actual spend",
+        "Savings Analysis Track procurement savings",
+        "Filter",
+        "Download",
+        "Download",
+        "Download",
+        "Download"
+      ],
+      "tables": 0,
+      "cards": 18
+    }
+  ]
+}

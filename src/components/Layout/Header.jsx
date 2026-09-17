@@ -1,13 +1,37 @@
 import { Bell, Search, User, Settings, LogOut, Menu, Brain, Activity, CheckCircle } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useWorkflow } from '../../context/WorkflowContext'
 import { Badge } from '../ui/Badge'
+import { listNotifications, markNotificationRead } from '../../api/notifications'
 
 const Header = ({ onMenuClick }) => {
   const navigate = useNavigate()
   const [showProfile, setShowProfile] = useState(false)
+  const [showNotifications, setShowNotifications] = useState(false)
+  const [notifications, setNotifications] = useState([])
   const { currentUser, logout } = useWorkflow()
+
+  useEffect(() => {
+    let active = true
+    const loadNotifications = async () => {
+      try {
+        const data = await listNotifications()
+        if (active) setNotifications(data)
+      } catch {
+        if (active) setNotifications([])
+      }
+    }
+    if (currentUser) {
+      loadNotifications()
+      const interval = setInterval(loadNotifications, 30000)
+      return () => {
+        active = false
+        clearInterval(interval)
+      }
+    }
+    return () => { active = false }
+  }, [currentUser])
 
   const roleLabels = {
     procurement_manager: 'Procurement Manager',
@@ -59,10 +83,36 @@ const Header = ({ onMenuClick }) => {
             </div>
           )}
 
-          <button className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors">
+          <div className="relative">
+          <button onClick={() => setShowNotifications(!showNotifications)} className="relative p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-colors" title="Notifications">
             <Bell className="w-5 h-5" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-danger-600 rounded-full" />
+            {notifications.some(notification => !notification.is_read) && <span className="absolute top-1 right-1 w-2 h-2 bg-danger-600 rounded-full" />}
           </button>
+          {showNotifications && (
+            <div className="absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg border border-gray-200 z-50">
+              <div className="px-4 py-3 border-b border-gray-200 font-semibold text-sm">Notifications</div>
+              <div className="max-h-80 overflow-y-auto">
+                {notifications.length === 0 ? (
+                  <p className="px-4 py-6 text-sm text-gray-500">No notifications</p>
+                ) : notifications.slice(0, 8).map(notification => (
+                  <button
+                    key={notification.id}
+                    onClick={async () => {
+                      if (!notification.is_read) {
+                        await markNotificationRead(notification.id)
+                        setNotifications(current => current.map(item => item.id === notification.id ? { ...item, is_read: true } : item))
+                      }
+                    }}
+                    className={`block w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-gray-50 ${notification.is_read ? '' : 'bg-primary-50'}`}
+                  >
+                    <p className="text-sm font-medium text-gray-900">{notification.title}</p>
+                    <p className="text-xs text-gray-600 mt-1">{notification.message}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          </div>
 
           <div className="relative">
             <button

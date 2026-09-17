@@ -99,6 +99,34 @@ class ApprovalReject(BaseModel):
     reason: str = Field(min_length=1)
 
 
+class NotificationOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    event_type: str
+    title: str
+    message: str
+    rfq_id: UUID | None
+    quotation_id: UUID | None
+    approval_id: UUID | None
+    purchase_order_id: UUID | None
+    is_read: bool
+    created_at: datetime
+
+
+class CommunicationMessageIn(BaseModel):
+    content: str = Field(min_length=1, max_length=4000)
+
+
+class ApprovalMessageOut(CommunicationMessageIn):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    approval_id: UUID
+    sender_id: UUID
+    sender_name: str | None = None
+    sender_role: str | None = None
+    created_at: datetime
+
+
 EventType = Literal[
     "SUPPLIER_DELAY", "SUPPLIER_QUALITY_ISSUE", "SUPPLIER_SHORTAGE", "SUPPLIER_CAPACITY_RISK",
     "SUPPLIER_PRICE_CHANGE", "INVENTORY_SHORTAGE", "PRODUCTION_DISRUPTION",

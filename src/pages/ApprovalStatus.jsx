@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useWorkflow } from '../context/WorkflowContext'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/Card'
@@ -6,6 +6,7 @@ import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Badge } from '../components/ui/Badge'
 import { CheckCircle, X, Clock, DollarSign, Package, Truck, AlertTriangle, FileText, User, Building, Send, Search } from 'lucide-react'
+import { listApprovalMessages, postApprovalMessage } from '../api/approvalMessages'
 
 const ApprovalStatus = () => {
   const navigate = useNavigate()
@@ -17,6 +18,19 @@ const ApprovalStatus = () => {
   const [showApproveDialog, setShowApproveDialog] = useState(false)
   const [showRejectDialog, setShowRejectDialog] = useState(false)
   const [rejectionReason, setRejectionReason] = useState('')
+  const [approvalMessages, setApprovalMessages] = useState([])
+  const [messageText, setMessageText] = useState('')
+
+  useEffect(() => {
+    let active = true
+    if (!selectedApproval) return undefined
+    listApprovalMessages(selectedApproval.id).then(messages => {
+      if (active) setApprovalMessages(messages)
+    }).catch(() => {
+      if (active) setApprovalMessages([])
+    })
+    return () => { active = false }
+  }, [selectedApproval?.id])
 
   const filteredApprovals = approvals.filter(approval => {
     const matchesSearch = approval.component?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -50,6 +64,15 @@ const ApprovalStatus = () => {
 
   const handleBackToList = () => {
     setSelectedApproval(null)
+    setApprovalMessages([])
+    setMessageText('')
+  }
+
+  const handleSendMessage = async () => {
+    if (!selectedApproval || !messageText.trim()) return
+    const message = await postApprovalMessage(selectedApproval.id, messageText.trim())
+    setApprovalMessages(current => [...current, message])
+    setMessageText('')
   }
 
   const handleApprove = () => {
@@ -195,6 +218,34 @@ const ApprovalStatus = () => {
                   <p className="font-medium">{new Date(selectedApproval.createdAt).toLocaleString()}</p>
                 </div>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Approval Discussion</CardTitle>
+            <CardDescription>Coordinate questions and budget decisions with the other stakeholder.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-3 max-h-64 overflow-y-auto">
+              {approvalMessages.length === 0 && <p className="text-sm text-gray-500">No messages yet.</p>}
+              {approvalMessages.map(message => (
+                <div key={message.id} className="rounded-md border border-gray-200 p-3">
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>{message.sender_name || message.sender_role || 'Stakeholder'}</span>
+                    <span>{new Date(message.created_at).toLocaleString()}</span>
+                  </div>
+                  <p className="mt-1 text-sm text-gray-700">{message.content}</p>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <Input value={messageText} onChange={(event) => setMessageText(event.target.value)} placeholder="Write a question or comment..." />
+              <Button onClick={handleSendMessage} disabled={!messageText.trim()}>
+                <Send className="w-4 h-4 mr-2" />
+                Send
+              </Button>
             </div>
           </CardContent>
         </Card>

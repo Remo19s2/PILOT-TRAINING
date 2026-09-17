@@ -1296,7 +1296,12 @@ const normalizeNegotiation = (negotiation) => ({
   rfqId: negotiation.rfq_id,
   quotationId: negotiation.quotation_id,
   supplierId: negotiation.supplier_id,
-  negotiationHistory: negotiation.messages || [],
+  negotiationHistory: (negotiation.messages || []).map(message => ({
+    ...message,
+    participant: message.sender_type === 'PROCUREMENT_MANAGER' ? 'procurement' : message.sender_type === 'SUPPLIER' ? 'supplier' : 'system',
+    message: message.content,
+    timestamp: message.created_at ? new Date(message.created_at).toLocaleString() : '',
+  })),
 })
 
 const normalizeRisk = (risk) => {
@@ -1526,6 +1531,7 @@ export const WorkflowProvider = ({ children }) => {
     purchaseOrders,
     decisionData,
     workflowExecutions,
+    refreshData,
     
     // Actions
     login,

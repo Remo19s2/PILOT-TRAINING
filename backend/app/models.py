@@ -489,3 +489,28 @@ class Approval(Base):
     status: Mapped[str] = mapped_column(String(32), default="PENDING", nullable=False, index=True)
     decision_reason: Mapped[str | None] = mapped_column(Text)
     decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ApprovalMessage(Base):
+    __tablename__ = "approval_messages"
+    id: Mapped[UUID] = mapped_column(UUID_TYPE, primary_key=True, default=uuid4)
+    approval_id: Mapped[UUID] = mapped_column(ForeignKey("approvals.id", ondelete="CASCADE"), nullable=False, index=True)
+    sender_id: Mapped[UUID] = mapped_column(ForeignKey("users.user_id"), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    sender: Mapped["User"] = relationship(foreign_keys=[sender_id])
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+    id: Mapped[UUID] = mapped_column(UUID_TYPE, primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False, index=True)
+    event_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    title: Mapped[str] = mapped_column(String(160), nullable=False)
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    rfq_id: Mapped[UUID | None] = mapped_column(ForeignKey("rfqs.id"), index=True)
+    quotation_id: Mapped[UUID | None] = mapped_column(ForeignKey("quotations.id"), index=True)
+    approval_id: Mapped[UUID | None] = mapped_column(ForeignKey("approvals.id"), index=True)
+    purchase_order_id: Mapped[UUID | None] = mapped_column(ForeignKey("purchase_orders.id"), index=True)
+    is_read: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)

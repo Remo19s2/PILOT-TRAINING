@@ -13,8 +13,8 @@ from .audit import record_audit
 from .config import get_settings
 from .db import Base, engine
 from .dependencies import DbSession, current_user, require_roles
-from .models import Approval, DecisionRecommendation, Negotiation, NegotiationMessage, PlanningRequirement, PurchaseOrder, Quotation, Rfq, RfqItem, RfqSupplier, Role, Supplier, User, WorkflowExecution
-from .schemas import ApprovalReject, DecisionAction, LoginRequest, NegotiationAuthorization, NegotiationDraftRequest, ProcurementEventIn, PurchaseOrderAcknowledgement, PurchaseOrderCreate, PurchaseOrderOut, QuotationCreate, QuotationOut, RefreshRequest, RfqCreate, RfqOut, RfqSend, SessionOut, SnsWebhookIn, SupplierSelection, UserOut, WorkflowExecutionOut
+from .models import Approval, ApprovalMessage, DecisionRecommendation, Negotiation, NegotiationMessage, Notification, PlanningRequirement, PurchaseOrder, Quotation, Rfq, RfqItem, RfqSupplier, Role, Supplier, User, UserSupplier, WorkflowExecution
+from .schemas import ApprovalMessageOut, ApprovalReject, CommunicationMessageIn, DecisionAction, LoginRequest, NegotiationAuthorization, NegotiationDraftRequest, NotificationOut, ProcurementEventIn, PurchaseOrderAcknowledgement, PurchaseOrderCreate, PurchaseOrderOut, QuotationCreate, QuotationOut, RefreshRequest, RfqCreate, RfqOut, RfqSend, SessionOut, SnsWebhookIn, SupplierSelection, UserOut, WorkflowExecutionOut
 from .security import create_access_token, create_refresh_token, decode_token, hash_password, verify_password
 from .services.decision_service import DecisionService
 from .services.negotiation_service import NegotiationService
@@ -72,6 +72,21 @@ def utc_datetime(value: datetime) -> datetime:
     return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value
 
 
+def add_notification(db: Session, user_id: UUID, event_type: str, title: str, message: str, **references: UUID | None) -> None:
+    db.add(Notification(user_id=user_id, event_type=event_type, title=title, message=message, **references))
+
+
+def notify_role(db: Session, role_name: str, event_type: str, title: str, message: str, **references: UUID | None) -> None:
+    for user_id in db.scalars(select(User.id).join(Role).where(Role.name == role_name)):
+        add_notification(db, user_id, event_type, title, message, **references)
+
+
+def notify_supplier(db: Session, supplier_id: UUID, event_type: str, title: str, message: str, **references: UUID | None) -> None:
+    user_ids = select(UserSupplier.user_id).where(UserSupplier.supplier_id == supplier_id)
+    for user_id in db.scalars(user_ids):
+        add_notification(db, user_id, event_type, title, message, **references)
+
+
 def execution_out(execution: WorkflowExecution) -> WorkflowExecutionOut:
     return WorkflowExecutionOut(id=execution.id, workflow_type=execution.workflow_type, event_type=execution.event_type, parent_execution_id=execution.parent_execution_id, status=execution.status, rfq_id=execution.rfq_id, supplier_id=execution.supplier_id, sns_workflow_id=execution.sns_workflow_id, sns_execution_id=execution.sns_execution_id, input_payload=execution.input_payload or {}, output_payload=execution.output_payload, error_message=execution.error_message, started_at=execution.started_at, completed_at=execution.completed_at, created_at=execution.created_at)
 
@@ -79,6 +94,29 @@ def execution_out(execution: WorkflowExecution) -> WorkflowExecutionOut:
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/api/notifications", response_model=list[NotificationOut])
+def notifications(db: DbSession, unread_only: bool = False, user: User = Depends(current_user)) -> list[Notification]:
+    query = select(Notification).where(Notification.user_id == user.id)
+    if unread_only:
+        query = query.where(Notification.is_read.is_(False))
+    return list(db.scalars(query.order_by(Notification.created_at.desc())))
+
+
+@app.post("/api/notifications/{notification_id}/read", response_model=NotificationOut)
+def mark_notification_read(notification_id: UUID, db: DbSession, user: User = Depends(current_user)) -> Notification:
+    notification = db.scalar(select(Notification).where(Notification.id == notification_id, Notification.user_id == user.id).with_for_update())
+    if not notification:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    notification.is_read = True
+    db.commit()
+    db.refresh(notification)
+    return notification
+
+
+def approval_message_out(message: ApprovalMessage) -> ApprovalMessageOut:
+    return ApprovalMessageOut(id=message.id, approval_id=message.approval_id, sender_id=message.sender_id, content=message.content, sender_name=message.sender.display_name if message.sender else None, sender_role=message.sender.role.name if message.sender and message.sender.role else None, created_at=message.created_at)
 
 
 @app.post("/api/workflows/events", response_model=WorkflowExecutionOut, status_code=status.HTTP_202_ACCEPTED)
@@ -260,6 +298,7 @@ def send_rfq(rfq_id: UUID, payload: RfqSend, db: DbSession, user: User = Depends
         if item.supplier_id in requested:
             item.sent_at = now
             item.response_status = "PENDING"
+            notify_supplier(db, item.supplier_id, "RFQ_SENT", "New RFQ available", "A new request for quotation is ready for your response.", rfq_id=rfq.id)
     rfq.status = "OPEN"
     rfq.release_date = now
     record_audit(db, user, "RFQ_SENT", "RFQ", rfq.id, new_values={"status": rfq.status, "supplier_ids": list(requested)})
@@ -299,8 +338,10 @@ def submit_quotation(payload: QuotationCreate, db: DbSession, user: User = Depen
         raise HTTPException(status_code=409, detail="A quotation already exists; use the revision endpoint")
     quotation = Quotation(id=uuid4(), version=1, status="SUBMITTED", **payload.model_dump())
     db.add(quotation)
+    db.flush()
     assignment.response_status = "RESPONDED"
     assignment.responded_at = datetime.now(timezone.utc)
+    add_notification(db, rfq.created_by, "QUOTATION_RECEIVED", "Quotation received", "A supplier has submitted a quotation for your RFQ.", rfq_id=rfq.id, quotation_id=quotation.id)
     record_audit(db, user, "QUOTATION_SUBMITTED", "QUOTATION", quotation.id, new_values={"rfq_id": quotation.rfq_id, "supplier_id": quotation.supplier_id, "version": quotation.version})
     db.commit()
     db.refresh(quotation)
@@ -346,6 +387,32 @@ def approvals(db: DbSession, user: User = Depends(require_roles("PROCUREMENT_MAN
     return list(db.scalars(select(Approval).order_by(Approval.id)))
 
 
+@app.get("/api/approvals/{approval_id}/messages", response_model=list[ApprovalMessageOut])
+def approval_messages(approval_id: UUID, db: DbSession, user: User = Depends(require_roles("PROCUREMENT_MANAGER", "FINANCE_APPROVER"))) -> list[ApprovalMessageOut]:
+    if not db.get(Approval, approval_id):
+        raise HTTPException(status_code=404, detail="Approval not found")
+    messages = db.scalars(select(ApprovalMessage).where(ApprovalMessage.approval_id == approval_id).order_by(ApprovalMessage.created_at)).all()
+    return [approval_message_out(message) for message in messages]
+
+
+@app.post("/api/approvals/{approval_id}/messages", response_model=ApprovalMessageOut, status_code=status.HTTP_201_CREATED)
+def post_approval_message(approval_id: UUID, payload: CommunicationMessageIn, db: DbSession, user: User = Depends(require_roles("PROCUREMENT_MANAGER", "FINANCE_APPROVER"))) -> ApprovalMessageOut:
+    approval = db.get(Approval, approval_id)
+    if not approval:
+        raise HTTPException(status_code=404, detail="Approval not found")
+    message = ApprovalMessage(approval_id=approval_id, sender_id=user.id, content=payload.content)
+    db.add(message)
+    db.flush()
+    if user.role.name == "FINANCE_APPROVER":
+        add_notification(db, approval.requested_by, "APPROVAL_MESSAGE", "New finance message", "Finance added a message to an approval discussion.", rfq_id=approval.rfq_id, quotation_id=approval.quotation_id, approval_id=approval.id)
+    else:
+        notify_role(db, "FINANCE_APPROVER", "APPROVAL_MESSAGE", "New procurement message", "Procurement added a message to an approval discussion.", rfq_id=approval.rfq_id, quotation_id=approval.quotation_id, approval_id=approval.id)
+    record_audit(db, user, "APPROVAL_MESSAGE_POSTED", "APPROVAL", approval.id, new_values={"message_id": message.id})
+    db.commit()
+    db.refresh(message)
+    return approval_message_out(message)
+
+
 @app.post("/api/rfqs/{rfq_id}/select")
 def select_supplier(rfq_id: UUID, payload: SupplierSelection, db: DbSession, user: User = Depends(require_roles("PROCUREMENT_MANAGER"))) -> dict:
     rfq = db.scalar(select(Rfq).where(Rfq.id == rfq_id).with_for_update())
@@ -361,6 +428,8 @@ def select_supplier(rfq_id: UUID, payload: SupplierSelection, db: DbSession, use
     rfq.status = "SUPPLIER_SELECTED"
     approval = Approval(id=uuid4(), rfq_id=rfq_id, quotation_id=quotation.id, requested_by=user.id, status="PENDING")
     db.add(approval)
+    db.flush()
+    notify_role(db, "FINANCE_APPROVER", "APPROVAL_REQUESTED", "Finance approval required", "A supplier selection is waiting for finance approval.", rfq_id=rfq_id, quotation_id=quotation.id, approval_id=approval.id)
     record_audit(db, user, "SUPPLIER_SELECTED", "QUOTATION", quotation.id, new_values={"rfq_id": rfq_id, "approval_id": approval.id})
     record_audit(db, user, "APPROVAL_REQUESTED", "APPROVAL", approval.id, new_values={"status": approval.status})
     db.commit()
@@ -416,6 +485,7 @@ def approve(approval_id: UUID, db: DbSession, user: User = Depends(require_roles
         raise HTTPException(status_code=409, detail="Approval is already decided")
     approval.status = "APPROVED"
     approval.decided_at = datetime.now(timezone.utc)
+    add_notification(db, approval.requested_by, "APPROVAL_APPROVED", "Approval completed", "Finance approved the selected supplier.", rfq_id=approval.rfq_id, quotation_id=approval.quotation_id, approval_id=approval.id)
     record_audit(db, user, "APPROVED", "APPROVAL", approval.id, new_values={"status": approval.status})
     db.commit()
     db.refresh(approval)
@@ -432,6 +502,7 @@ def reject(approval_id: UUID, payload: ApprovalReject, db: DbSession, user: User
     approval.status = "REJECTED"
     approval.decision_reason = payload.reason
     approval.decided_at = datetime.now(timezone.utc)
+    add_notification(db, approval.requested_by, "APPROVAL_REJECTED", "Approval rejected", f"Finance rejected the supplier selection: {payload.reason}", rfq_id=approval.rfq_id, quotation_id=approval.quotation_id, approval_id=approval.id)
     record_audit(db, user, "REJECTED", "APPROVAL", approval.id, new_values={"status": approval.status, "reason": payload.reason})
     db.commit()
     db.refresh(approval)
@@ -446,6 +517,31 @@ def negotiations(db: DbSession, user: User = Depends(current_user)) -> list[dict
     return [{"id": item.id, "rfq_id": item.rfq_id, "quotation_id": item.quotation_id, "supplier_id": item.supplier_id, "status": item.status, "messages": [{"id": message.id, "sender_type": message.sender_type, "message_type": message.message_type, "content": message.content, "created_at": message.created_at} for message in db.scalars(select(NegotiationMessage).where(NegotiationMessage.negotiation_id == item.id).order_by(NegotiationMessage.created_at))]} for item in db.scalars(query)]
 
 
+@app.post("/api/negotiations/{negotiation_id}/messages", response_model=dict, status_code=status.HTTP_201_CREATED)
+def post_negotiation_message(negotiation_id: UUID, payload: CommunicationMessageIn, db: DbSession, user: User = Depends(current_user)) -> dict:
+    negotiation = db.get(Negotiation, negotiation_id)
+    if not negotiation:
+        raise HTTPException(status_code=404, detail="Negotiation not found")
+    if user.role.name == "SUPPLIER":
+        if user.supplier_id != negotiation.supplier_id:
+            raise HTTPException(status_code=403, detail="Negotiation is not available to this supplier")
+        sender_type = "SUPPLIER"
+        negotiation.status = "COUNTER_OFFER_RECEIVED"
+        notify_role(db, "PROCUREMENT_MANAGER", "NEGOTIATION_MESSAGE", "Supplier replied to negotiation", "A supplier has replied in an active negotiation.", rfq_id=negotiation.rfq_id, quotation_id=negotiation.quotation_id)
+    elif user.role.name == "PROCUREMENT_MANAGER":
+        sender_type = "PROCUREMENT_MANAGER"
+        negotiation.status = "AWAITING_SUPPLIER"
+        notify_supplier(db, negotiation.supplier_id, "NEGOTIATION_MESSAGE", "New procurement message", "Procurement sent a new negotiation message.", rfq_id=negotiation.rfq_id, quotation_id=negotiation.quotation_id)
+    else:
+        raise HTTPException(status_code=403, detail="Only procurement and suppliers may post negotiation messages")
+    message = NegotiationMessage(id=uuid4(), negotiation_id=negotiation.id, sender_type=sender_type, message_type="MESSAGE", content=payload.content, authorized_by=user.id if sender_type == "PROCUREMENT_MANAGER" else None)
+    db.add(message)
+    record_audit(db, user, "NEGOTIATION_MESSAGE_POSTED", "NEGOTIATION", negotiation.id, new_values={"message_id": message.id, "sender_type": sender_type})
+    db.commit()
+    db.refresh(message)
+    return {"id": message.id, "negotiation_id": negotiation.id, "sender_type": message.sender_type, "message_type": message.message_type, "content": message.content, "created_at": message.created_at, "status": negotiation.status}
+
+
 @app.post("/api/negotiations/draft")
 def draft_negotiation(payload: NegotiationDraftRequest, db: DbSession, user: User = Depends(require_roles("PROCUREMENT_MANAGER"))) -> dict:
     try:
@@ -457,7 +553,12 @@ def draft_negotiation(payload: NegotiationDraftRequest, db: DbSession, user: Use
 @app.post("/api/negotiations/{negotiation_id}/authorize")
 def authorize_negotiation(negotiation_id: UUID, payload: NegotiationAuthorization, db: DbSession, user: User = Depends(require_roles("PROCUREMENT_MANAGER"))) -> dict:
     try:
-        return NegotiationService().authorize(db, user, negotiation_id, payload.message)
+        result = NegotiationService().authorize(db, user, negotiation_id, payload.message)
+        negotiation = db.get(Negotiation, negotiation_id)
+        if negotiation:
+            notify_supplier(db, negotiation.supplier_id, "NEGOTIATION_MESSAGE", "New negotiation message", "Procurement authorized a message for your quotation.", rfq_id=negotiation.rfq_id, quotation_id=negotiation.quotation_id)
+            db.commit()
+        return result
     except ValueError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
 
@@ -495,6 +596,7 @@ def send_purchase_order(po_id: UUID, db: DbSession, user: User = Depends(require
     if po.status != "DRAFT":
         raise HTTPException(status_code=409, detail="Only draft purchase orders can be sent")
     po.status = "SENT"
+    notify_supplier(db, po.supplier_id, "PURCHASE_ORDER_SENT", "Purchase order received", "A purchase order is ready for your acknowledgement.", rfq_id=po.rfq_id, quotation_id=po.quotation_id, purchase_order_id=po.id)
     record_audit(db, user, "PO_SENT", "PURCHASE_ORDER", po.id, new_values={"status": po.status})
     db.commit()
     db.refresh(po)
@@ -504,6 +606,9 @@ def send_purchase_order(po_id: UUID, db: DbSession, user: User = Depends(require
 @app.post("/api/purchase-orders/{po_id}/acknowledge", response_model=PurchaseOrderOut)
 def acknowledge_purchase_order(po_id: UUID, payload: PurchaseOrderAcknowledgement, db: DbSession, user: User = Depends(require_roles("SUPPLIER"))) -> PurchaseOrder:
     try:
-        return PurchaseOrderService().acknowledge(db, user, po_id, payload.accepted, payload.notes)
+        purchase_order = PurchaseOrderService().acknowledge(db, user, po_id, payload.accepted, payload.notes)
+        add_notification(db, purchase_order.created_by, "PURCHASE_ORDER_ACKNOWLEDGED", "Purchase order acknowledged", f"The supplier {'accepted' if payload.accepted else 'rejected'} the purchase order.", rfq_id=purchase_order.rfq_id, quotation_id=purchase_order.quotation_id, purchase_order_id=purchase_order.id)
+        db.commit()
+        return purchase_order
     except ValueError as error:
         raise HTTPException(status_code=409, detail=str(error)) from error

@@ -8,6 +8,7 @@ import { Select } from '../components/ui/Select'
 import { Badge } from '../components/ui/Badge'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/Table'
 import WorkflowTracker from '../components/shared/WorkflowTracker'
+import { postNegotiationMessage } from '../api/negotiations'
 import { 
   ArrowLeft, 
   Search, 
@@ -97,29 +98,15 @@ const NegotiationCenterNew = () => {
     navigate('/negotiation-center')
   }
 
-  const handleSendOffer = () => {
+  const handleSendOffer = async () => {
     if (!selectedNegotiation) return
-    
-    // Add new history entry
-    const newHistory = {
-      id: `NH-${Date.now()}`,
-      participant: 'procurement',
-      action: 'offer_sent',
-      message: offerData.message || `Proposed price of ₹${offerData.proposedPrice}/unit`,
-      price: parseFloat(offerData.proposedPrice),
-      timestamp: new Date().toLocaleString()
-    }
-
-    // Update negotiation (in real app, this would be an API call)
-    const updatedNegotiation = {
-      ...selectedNegotiation,
-      currentOffer: parseFloat(offerData.proposedPrice),
-      status: 'awaiting_supplier',
-      lastUpdated: new Date().toLocaleString(),
-      negotiationHistory: [...selectedNegotiation.negotiationHistory, newHistory]
-    }
-
-    setSelectedNegotiation(updatedNegotiation)
+    const content = offerData.message || `Proposed price of ${offerData.proposedPrice}/unit`
+    const message = await postNegotiationMessage(selectedNegotiation.id, content)
+    setSelectedNegotiation(current => ({
+      ...current,
+      status: message.status.toLowerCase(),
+      negotiationHistory: [...(current.negotiationHistory || []), message]
+    }))
     setShowOfferForm(false)
     setOfferData({ proposedPrice: '', quantity: '', delivery: '', terms: '', message: '' })
     alert('Negotiation offer sent successfully.')
