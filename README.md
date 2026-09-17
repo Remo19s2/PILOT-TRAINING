@@ -8,8 +8,9 @@ The repository contains the existing React/Vite application and a FastAPI/Postgr
 2. Copy `backend/.env.example` to `backend/.env` and set `DATABASE_URL` and `JWT_SECRET_KEY`. SNS settings are optional for local deterministic workflows, but required for Workbench dispatch.
 3. From `backend`, install dependencies with `python -m pip install -r requirements.txt`.
 4. Seed local users with `python -m app.seed`.
-5. Start the API with `python -m app` from `backend`.
-6. In the repository root, set `VITE_API_BASE_URL=http://localhost:8000/api` in `.env.local`, then run `npm install` and `npm run dev`.
+5. Populate the shared Supabase demo workflow with repeatable fixtures using `python seed_mock_data.py` from `backend`.
+6. Start the API with `python -m app` from `backend`.
+7. In the repository root, set `VITE_API_BASE_URL=http://localhost:8000/api` in `.env.local`, then run `npm install` and `npm run dev`.
 
 Seeded development users are `procurement / procurement123`, `supplier / supplier123`, and `finance / finance123`. Replace these credentials outside local development.
 
