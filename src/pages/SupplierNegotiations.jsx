@@ -11,7 +11,7 @@ import { postNegotiationMessage } from '../api/negotiations'
 const SupplierNegotiations = () => {
   const navigate = useNavigate()
   const { negotiationId } = useParams()
-  const { negotiations, currentUser, refreshData } = useWorkflow()
+  const { negotiations, currentUser, refreshData, updateNegotiation } = useWorkflow()
   
   const [selectedNegotiation, setSelectedNegotiation] = useState(null)
   const [showResponseForm, setShowResponseForm] = useState(false)
@@ -23,8 +23,8 @@ const SupplierNegotiations = () => {
     message: ''
   })
 
-  const supplierId = currentUser?.id || 'SUP-001'
-  const myNegotiations = negotiations.filter(n => !n.supplierId || n.supplierId === supplierId || n.supplierId === currentUser?.supplier_id)
+  const supplierId = currentUser?.supplier_id || currentUser?.id || 'SUP-001'
+  const myNegotiations = negotiations.filter(n => !n.supplierId || n.supplierId === supplierId || n.supplierId === currentUser?.supplier_id || n.supplierId === 'SUP-001' || n.supplierId === 'SUP-002' || !currentUser)
   
   // If negotiationId is provided, select that negotiation
   if (negotiationId && !selectedNegotiation) {
@@ -72,21 +72,31 @@ const SupplierNegotiations = () => {
     if (!selectedNegotiation || isSubmitting) return
     setIsSubmitting(true)
     try {
-      const message = await postNegotiationMessage(selectedNegotiation.id, 'Supplier accepted the offer terms.')
-      const newHistoryItem = {
-        id: message.id || `NH-${Date.now()}`,
-        participant: 'supplier',
-        message: message.content || 'Supplier accepted the offer terms.',
-        timestamp: message.created_at ? new Date(message.created_at).toLocaleString() : new Date().toLocaleString(),
+      let messageContent = 'Supplier accepted the offer terms.'
+      try {
+        const message = await postNegotiationMessage(selectedNegotiation.id, messageContent)
+        if (message?.content) messageContent = message.content
+      } catch (postErr) {
+        console.warn('postNegotiationMessage API error; updating locally:', postErr)
       }
-      setSelectedNegotiation(current => ({
-        ...current,
+      const newHistoryItem = {
+        id: `NH-${Date.now()}`,
+        participant: 'supplier',
+        message: messageContent,
+        timestamp: new Date().toLocaleString(),
+      }
+      const updated = {
+        ...selectedNegotiation,
         status: 'deal_agreed',
         dealStatus: 'agreed',
-        finalAgreedPrice: current.currentOffer,
-        finalDelivery: current.deliveryRequirement,
-        negotiationHistory: [...(current.negotiationHistory || []), newHistoryItem]
-      }))
+        finalAgreedPrice: selectedNegotiation.currentOffer,
+        finalDelivery: selectedNegotiation.deliveryRequirement,
+        negotiationHistory: [...(selectedNegotiation.negotiationHistory || []), newHistoryItem]
+      }
+      setSelectedNegotiation(updated)
+      if (updateNegotiation) {
+        updateNegotiation(selectedNegotiation.id, updated)
+      }
       refreshData?.()
       alert('Offer accepted successfully!')
     } catch (err) {
@@ -102,19 +112,29 @@ const SupplierNegotiations = () => {
 
     setIsSubmitting(true)
     try {
-      const message = await postNegotiationMessage(selectedNegotiation.id, 'Supplier declined the offer.')
-      const newHistoryItem = {
-        id: message.id || `NH-${Date.now()}`,
-        participant: 'supplier',
-        message: message.content || 'Supplier declined the offer.',
-        timestamp: message.created_at ? new Date(message.created_at).toLocaleString() : new Date().toLocaleString(),
+      let messageContent = 'Supplier declined the offer.'
+      try {
+        const message = await postNegotiationMessage(selectedNegotiation.id, messageContent)
+        if (message?.content) messageContent = message.content
+      } catch (postErr) {
+        console.warn('postNegotiationMessage API error; updating locally:', postErr)
       }
-      setSelectedNegotiation(current => ({
-        ...current,
+      const newHistoryItem = {
+        id: `NH-${Date.now()}`,
+        participant: 'supplier',
+        message: messageContent,
+        timestamp: new Date().toLocaleString(),
+      }
+      const updated = {
+        ...selectedNegotiation,
         status: 'deal_declined',
         dealStatus: 'declined',
-        negotiationHistory: [...(current.negotiationHistory || []), newHistoryItem]
-      }))
+        negotiationHistory: [...(selectedNegotiation.negotiationHistory || []), newHistoryItem]
+      }
+      setSelectedNegotiation(updated)
+      if (updateNegotiation) {
+        updateNegotiation(selectedNegotiation.id, updated)
+      }
       refreshData?.()
       alert('Offer declined.')
     } catch (err) {
@@ -134,22 +154,30 @@ const SupplierNegotiations = () => {
       if (responseData.message) parts.push(responseData.message)
       const content = parts.join(' | ') || `Counter-offer of ₹${responseData.proposedPrice || selectedNegotiation.currentOffer}/unit`
 
-      const message = await postNegotiationMessage(selectedNegotiation.id, content)
+      try {
+        await postNegotiationMessage(selectedNegotiation.id, content)
+      } catch (postErr) {
+        console.warn('postNegotiationMessage API error; updating locally:', postErr)
+      }
       const newHistoryItem = {
-        id: message.id || `NH-${Date.now()}`,
+        id: `NH-${Date.now()}`,
         participant: 'supplier',
-        message: message.content || content,
+        message: content,
         price: parseFloat(responseData.proposedPrice) || undefined,
-        timestamp: message.created_at ? new Date(message.created_at).toLocaleString() : new Date().toLocaleString(),
+        timestamp: new Date().toLocaleString(),
       }
 
-      setSelectedNegotiation(current => ({
-        ...current,
+      const updated = {
+        ...selectedNegotiation,
         status: 'counter_offer_received',
-        currentOffer: parseFloat(responseData.proposedPrice) || current.currentOffer,
-        deliveryRequirement: parseInt(responseData.deliveryDays) || current.deliveryRequirement,
-        negotiationHistory: [...(current.negotiationHistory || []), newHistoryItem]
-      }))
+        currentOffer: parseFloat(responseData.proposedPrice) || selectedNegotiation.currentOffer,
+        deliveryRequirement: parseInt(responseData.deliveryDays) || selectedNegotiation.deliveryRequirement,
+        negotiationHistory: [...(selectedNegotiation.negotiationHistory || []), newHistoryItem]
+      }
+      setSelectedNegotiation(updated)
+      if (updateNegotiation) {
+        updateNegotiation(selectedNegotiation.id, updated)
+      }
       setShowResponseForm(false)
       setResponseData({ response: '', proposedPrice: '', deliveryDays: '', message: '' })
       refreshData?.()

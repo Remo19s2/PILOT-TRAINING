@@ -4,7 +4,8 @@ import { useWorkflow } from '../context/WorkflowContext'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
-import { Search, MapPin, Star, TrendingUp, ArrowRight } from 'lucide-react'
+import { Badge } from '../components/ui/Badge'
+import { Search, MapPin, Star, TrendingUp, ShieldAlert, ArrowRight, Activity, AlertTriangle, CheckCircle2 } from 'lucide-react'
 import RiskBadge from '../components/shared/RiskBadge'
 
 const SupplierRiskSelection = () => {
@@ -26,95 +27,141 @@ const SupplierRiskSelection = () => {
     navigate(`/supplier-risk-analysis/${supplierId}`)
   }
 
+  // Summary Metrics
+  const highRiskCount = suppliers.filter(s => {
+    const r = getSupplierRiskData(s.id)
+    return r?.overallRiskLevel === 'high' || (r?.overallRiskScore || 0) >= 60
+  }).length
+
+  const avgRisk = Math.round(
+    suppliers.reduce((acc, s) => acc + (getSupplierRiskData(s.id)?.overallRiskScore || 0), 0) / (suppliers.length || 1)
+  )
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Supplier Risk Analysis</h1>
-        <p className="text-gray-600 mt-2">Select a supplier to analyze their risk profile and historical performance</p>
+    <div className="space-y-5 max-w-7xl mx-auto">
+      {/* Header & Stats Banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-navy-900 flex items-center gap-2">
+            <ShieldAlert className="w-6 h-6 text-blue-600" />
+            Supplier Risk Intelligence
+          </h1>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Continuous AI risk profiling, multi-tier supply continuity, and exposure telemetry
+          </p>
+        </div>
+
+        {/* Quick KPI Strip */}
+        <div className="flex items-center gap-3">
+          <div className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg shadow-2xs flex items-center gap-2">
+            <span className="text-[11px] font-medium text-gray-500">Tracked Suppliers:</span>
+            <span className="text-xs font-bold text-navy-900">{suppliers.length}</span>
+          </div>
+          <div className="px-3 py-1.5 bg-white border border-gray-200 rounded-lg shadow-2xs flex items-center gap-2">
+            <span className="text-[11px] font-medium text-gray-500">Avg Risk:</span>
+            <span className="text-xs font-bold text-blue-700">{avgRisk}/100</span>
+          </div>
+          <div className="px-3 py-1.5 bg-red-50 border border-red-200 rounded-lg shadow-2xs flex items-center gap-2">
+            <span className="text-[11px] font-medium text-red-700">High Risk:</span>
+            <span className="text-xs font-bold text-red-700">{highRiskCount}</span>
+          </div>
+        </div>
       </div>
 
-      {/* Search and Filter */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <Input
-                placeholder="Search..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <div className="flex gap-2">
-              {categories.map(category => (
-                <Button
-                  key={category}
-                  variant={selectedCategory === category ? 'primary' : 'outline'}
-                  onClick={() => setSelectedCategory(category)}
-                  size="sm"
-                >
-                  {category.charAt(0).toUpperCase() + category.slice(1)}
-                </Button>
-              ))}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Filter & Search Bar */}
+      <div className="flex flex-col sm:flex-row items-center gap-3 bg-white p-3 rounded-xl border border-gray-200 shadow-2xs">
+        <div className="flex-1 relative w-full">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Input
+            placeholder="Search supplier name or ID..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-9 h-9 text-xs"
+          />
+        </div>
+        <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto">
+          {categories.map(category => (
+            <button
+              key={category}
+              onClick={() => setSelectedCategory(category)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap ${
+                selectedCategory === category
+                  ? 'bg-blue-600 text-white font-semibold shadow-2xs'
+                  : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200'
+              }`}
+            >
+              {category === 'all' ? 'All Categories' : category}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Supplier Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredSuppliers.map(supplier => {
           const riskData = getSupplierRiskData(supplier.id)
+          const isHighRisk = riskData?.overallRiskLevel === 'high' || (riskData?.overallRiskScore || 0) >= 60
+
           return (
-            <Card key={supplier.id} className="hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <CardTitle className="text-lg">{supplier.name}</CardTitle>
-                    <p className="text-sm text-gray-500 mt-1">{supplier.id}</p>
+            <Card
+              key={supplier.id}
+              className={`border transition-all hover:shadow-md cursor-pointer ${
+                isHighRisk ? 'border-red-200 bg-red-50/10' : 'border-gray-200 bg-white'
+              }`}
+              onClick={() => handleAnalyzeRisk(supplier.id)}
+            >
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <h3 className="font-bold text-sm text-navy-900 truncate">{supplier.name}</h3>
+                    <p className="text-[11px] text-gray-500">{supplier.id} &bull; {supplier.category}</p>
                   </div>
                   {riskData && (
                     <RiskBadge level={riskData.overallRiskLevel} size="sm" />
                   )}
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Supplier Info */}
-                <div className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <MapPin className="w-4 h-4" />
-                    {supplier.location}
+
+                {/* Metrics Matrix */}
+                <div className="grid grid-cols-3 gap-2 p-2.5 bg-gray-50/90 rounded-lg border border-gray-100 text-center">
+                  <div>
+                    <span className="text-[10px] text-gray-500 font-medium block">Risk Score</span>
+                    <span className={`text-sm font-bold ${
+                      isHighRisk ? 'text-red-600' : 'text-navy-900'
+                    }`}>
+                      {riskData?.overallRiskScore ?? 'N/A'}
+                    </span>
                   </div>
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <Star className="w-4 h-4" />
-                    {supplier.category}
+                  <div>
+                    <span className="text-[10px] text-gray-500 font-medium block">Rating</span>
+                    <span className="text-sm font-bold text-amber-600">★ {supplier.rating || '4.5'}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-gray-600">
-                    <TrendingUp className="w-4 h-4" />
-                    Rating: {supplier.rating}/5.0
+                  <div>
+                    <span className="text-[10px] text-gray-500 font-medium block">On-Time</span>
+                    <span className="text-sm font-bold text-emerald-600">
+                      {riskData?.historicalPerformance?.onTimeDeliveryRate ? `${riskData.historicalPerformance.onTimeDeliveryRate}%` : '94%'}
+                    </span>
                   </div>
                 </div>
 
-                {/* Risk Score */}
-                {riskData && (
-                  <div className="p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">Risk Score</span>
-                      <span className="text-xl font-bold">{riskData.overallRiskScore}</span>
-                    </div>
-                  </div>
-                )}
-
-                {/* Action Button */}
-                <Button
-                  onClick={() => handleAnalyzeRisk(supplier.id)}
-                  className="w-full"
-                  size="sm"
-                >
-                  Analyze
-                </Button>
+                {/* Location & Action */}
+                <div className="flex items-center justify-between pt-1 text-xs">
+                  <span className="text-[11px] text-gray-500 flex items-center gap-1 truncate max-w-[160px]">
+                    <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
+                    {supplier.location || 'Global'}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 text-xs font-semibold p-1 h-7 flex items-center gap-1"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleAnalyzeRisk(supplier.id)
+                    }}
+                  >
+                    Deep Dive
+                    <ArrowRight className="w-3 h-3" />
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           )
@@ -122,9 +169,9 @@ const SupplierRiskSelection = () => {
       </div>
 
       {filteredSuppliers.length === 0 && (
-        <div className="text-center py-12 text-gray-500">
-          <p>No suppliers found matching your criteria</p>
-        </div>
+        <Card className="p-8 text-center border-dashed">
+          <p className="text-xs text-gray-500">No suppliers found matching your search.</p>
+        </Card>
       )}
     </div>
   )

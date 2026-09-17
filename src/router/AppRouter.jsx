@@ -49,17 +49,28 @@ import SupplierAlerts from '../pages/SupplierAlerts'
 import FinalSupplierSelection from '../pages/FinalSupplierSelection'
 import ApprovalStatus from '../pages/ApprovalStatus'
 import FinalDecisionToSupplier from '../pages/FinalDecisionToSupplier'
+import LandingPage from '../pages/LandingPage'
+
+const RFQDetailsAdaptive = () => {
+  const { currentUser } = useWorkflow()
+  const role = (currentUser?.role || '').toLowerCase()
+  if (role === 'supplier' || role.includes('supplier')) {
+    return <RFQDetails />
+  }
+  return <RFQDetailManager />
+}
 
 const AppRouter = () => {
   const { currentUser } = useWorkflow()
 
   return (
     <Routes>
+      {/* Landing Page Route - Launch default at / and /landing */}
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/landing" element={<LandingPage />} />
+
       {/* Login Route - No Layout */}
       <Route path="/login" element={<Login />} />
-
-      {/* Protected Routes - With Layout */}
-      <Route path="/" element={currentUser ? <Layout><Navigate to="/procurement-dashboard" replace /></Layout> : <Navigate to="/login" replace />} />
       
       {/* Procurement Manager Routes */}
       <Route path="/procurement-dashboard" element={<Layout><ProcurementDashboard /></Layout>} />
@@ -72,7 +83,7 @@ const AppRouter = () => {
       <Route path="/supplier-comparison/:rfqId" element={<Layout><SupplierComparison /></Layout>} />
       <Route path="/create-rfq" element={<Layout><CreateRFQ /></Layout>} />
       <Route path="/rfqs" element={<Layout><RFQs /></Layout>} />
-      <Route path="/rfq-details/:id" element={<Layout><RFQDetailManager /></Layout>} />
+      <Route path="/rfq-details/:id" element={<Layout><RFQDetailsAdaptive /></Layout>} />
       <Route path="/negotiation-center" element={<Layout><NegotiationCenterNew /></Layout>} />
       <Route path="/negotiation-center/:negotiationId" element={<Layout><NegotiationCenterNew /></Layout>} />
       <Route path="/quotations" element={<Layout><Quotations /></Layout>} />
@@ -81,10 +92,13 @@ const AppRouter = () => {
       <Route path="/final-decision-to-supplier/:approvalId" element={<Layout><FinalDecisionToSupplier /></Layout>} />
       <Route path="/final-decision-to-supplier" element={<Layout><FinalDecisionToSupplier /></Layout>} />
       <Route path="/suppliers" element={<Layout><Suppliers /></Layout>} />
-      <Route path="/supplier-performance" element={<Layout><div>Supplier Performance</div></Layout>} />
       <Route path="/risk-analysis" element={<Layout><SupplierRiskSelection /></Layout>} />
       <Route path="/supplier-risk-analysis/:supplierId" element={<Layout><SupplierRiskAnalysis /></Layout>} />
+      <Route path="/risk-recommendations" element={<Layout><DecisionRecommendation /></Layout>} />
       <Route path="/risk-recommendations/:supplierId" element={<Layout><RiskRecommendations /></Layout>} />
+      <Route path="/recommendations" element={<Layout><DecisionRecommendation /></Layout>} />
+      <Route path="/decision-recommendations" element={<Layout><DecisionRecommendation /></Layout>} />
+      <Route path="/decision-recommendation" element={<Layout><DecisionRecommendation /></Layout>} />
       <Route path="/approval-status" element={<Layout><ApprovalStatus /></Layout>} />
       <Route path="/monitoring-alerts" element={<Layout><MonitoringAlerts /></Layout>} />
 
@@ -93,7 +107,6 @@ const AppRouter = () => {
       <Route path="/new-rfqs" element={<Layout><NewRFQs /></Layout>} />
       <Route path="/viewed-rfqs" element={<Layout><NewRFQs /></Layout>} />
       <Route path="/rfq-history" element={<Layout><NewRFQs /></Layout>} />
-      <Route path="/rfq-details/:id" element={<Layout><RFQDetails /></Layout>} />
       <Route path="/submit-quotation/:id" element={<Layout><SubmitQuotation /></Layout>} />
       <Route path="/submitted-quotations" element={<Layout><Quotations /></Layout>} />
       <Route path="/revise-quotation/:id" element={<Layout><ReviseQuotation /></Layout>} />

@@ -1,18 +1,35 @@
 import { api } from './client'
 
+const isUuid = (val) => typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val)
+const toUuidOrNull = (val) => isUuid(val) ? val : null
+
 /**
  * Core event dispatcher → POST /api/workflows/events
  * Every procurement event is forwarded to n8n via the backend.
  */
-export const fireEvent = (eventType, priority = 'MEDIUM', source = {}, context = {}) =>
-  api.post('/workflows/events', { event_type: eventType, priority, source, context })
+export const fireEvent = (eventType, priority = 'MEDIUM', source = {}, context = {}) => {
+  const safeSource = {
+    user_id: toUuidOrNull(source.user_id),
+    rfq_id: toUuidOrNull(source.rfq_id),
+    component_id: toUuidOrNull(source.component_id),
+    supplier_id: toUuidOrNull(source.supplier_id),
+  }
+  return api.post('/workflows/events', { event_type: eventType, priority, source: safeSource, context })
+}
 
 /**
  * Monitoring event dispatcher → POST /api/monitoring/events
  * For operational/supply-chain monitoring events.
  */
-export const fireMonitoringEvent = (eventType, priority = 'HIGH', source = {}, context = {}) =>
-  api.post('/monitoring/events', { event_type: eventType, priority, source, context })
+export const fireMonitoringEvent = (eventType, priority = 'HIGH', source = {}, context = {}) => {
+  const safeSource = {
+    user_id: toUuidOrNull(source.user_id),
+    rfq_id: toUuidOrNull(source.rfq_id),
+    component_id: toUuidOrNull(source.component_id),
+    supplier_id: toUuidOrNull(source.supplier_id),
+  }
+  return api.post('/monitoring/events', { event_type: eventType, priority, source: safeSource, context })
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FINAL TRIGGER / EVENT SET
@@ -34,11 +51,11 @@ export const triggerRfqDeadlineReached = ({ rfq_id, component_id, required_deliv
 
 /**
  * 2. Required Negotiation
- * Procurement Manager clicks "Required Negotiation" on a supplier quotation.
+ * Procurement Manager clicks "Required Negotiation" on a supplier quotation or "Apply AI Proposal" in Negotiation page.
  * Details: rfq_id, quotation_id, supplier_id, component_id, quoted_price, quoted_quantity, quoted_delivery_date, negotiation_reason, priority
  */
-export const triggerNegotiationRequest = ({ rfq_id, quotation_id, supplier_id, component_id, quoted_price, quoted_quantity, quoted_delivery_date, negotiation_reason, priority = 'HIGH' }) =>
-  fireEvent('NEGOTIATION_REQUEST', priority, { rfq_id, quotation_id: undefined, supplier_id, component_id }, {
+export const triggerNegotiationRequest = ({ rfq_id, quotation_id, supplier_id, component_id, quoted_price, quoted_quantity, quoted_delivery_date, negotiation_reason, priority = 'HIGH', ...extra }) =>
+  fireEvent('NEGOTIATION_REQUEST', priority, { rfq_id, supplier_id, component_id }, {
     rfq_id,
     quotation_id,
     supplier_id,
@@ -47,6 +64,7 @@ export const triggerNegotiationRequest = ({ rfq_id, quotation_id, supplier_id, c
     quoted_quantity,
     quoted_delivery_date,
     negotiation_reason,
+    ...extra,
   })
 
 /**

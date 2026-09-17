@@ -11,6 +11,7 @@ export class ApiError extends Error {
 }
 
 export const getAccessToken = () => localStorage.getItem('mycelia_access_token')
+export const getRefreshToken = () => localStorage.getItem('mycelia_refresh_token')
 
 export const clearSession = () => {
   localStorage.removeItem('mycelia_access_token')
@@ -18,7 +19,47 @@ export const clearSession = () => {
   localStorage.removeItem('prism_user')
 }
 
-export async function request(path, options = {}) {
+let isRefreshing = false
+let refreshSubscribers = []
+
+const subscribeTokenRefresh = (cb) => {
+  refreshSubscribers.push(cb)
+}
+
+const onRefreshed = (token) => {
+  refreshSubscribers.forEach(cb => cb(token))
+  refreshSubscribers = []
+}
+
+async function performTokenRefresh() {
+  const refreshToken = getRefreshToken()
+  if (!refreshToken) throw new Error('No refresh token available')
+
+  const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ refresh_token: refreshToken })
+  })
+
+  if (!response.ok) {
+    clearSession()
+    throw new Error('Refresh token invalid or expired')
+  }
+
+  const data = await response.json()
+  if (data.access_token) {
+    localStorage.setItem('mycelia_access_token', data.access_token)
+  }
+  if (data.refresh_token) {
+    localStorage.setItem('mycelia_refresh_token', data.refresh_token)
+  }
+  if (data.user) {
+    localStorage.setItem('prism_user', JSON.stringify(data.user))
+  }
+  return data.access_token
+}
+
+export async function request(path, options = {}, isRetry = false) {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), options.timeout || REQUEST_TIMEOUT_MS)
   const token = getAccessToken()
@@ -34,6 +75,32 @@ export async function request(path, options = {}) {
       body: options.body === undefined ? undefined : JSON.stringify(options.body),
       signal: controller.signal,
     })
+
+    if (response.status === 401 && !isRetry && !path.includes('/auth/login') && !path.includes('/auth/refresh')) {
+      const refreshToken = getRefreshToken()
+      if (refreshToken) {
+        if (!isRefreshing) {
+          isRefreshing = true
+          try {
+            const newToken = await performTokenRefresh()
+            isRefreshing = false
+            onRefreshed(newToken)
+            return request(path, options, true)
+          } catch (refreshError) {
+            isRefreshing = false
+            refreshSubscribers = []
+            throw new ApiError('Session expired. Please log in again.', 401)
+          }
+        } else {
+          return new Promise((resolve, reject) => {
+            subscribeTokenRefresh(() => {
+              request(path, options, true).then(resolve).catch(reject)
+            })
+          })
+        }
+      }
+    }
+
     const text = await response.text()
     const data = text ? JSON.parse(text) : null
     if (!response.ok) {

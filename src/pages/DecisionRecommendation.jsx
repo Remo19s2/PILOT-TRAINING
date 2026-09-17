@@ -4,104 +4,106 @@ import { Badge } from '../components/ui/Badge'
 import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Select } from '../components/ui/Select'
-import { Progress } from '../components/ui/Progress'
-import { Target, Search, Filter, TrendingUp, CheckCircle, X, Send, Brain, BarChart3, ArrowRight, Eye, AlertTriangle, Lightbulb, Edit, User, Clock, DollarSign } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts'
+import { Target, Search, Filter, TrendingUp, CheckCircle, X, Send, Brain, BarChart3, ArrowRight, Eye, AlertTriangle, Lightbulb, Edit, User, Clock, DollarSign, Sparkles, Check } from 'lucide-react'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
 const DecisionRecommendation = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [selectedDecision, setSelectedDecision] = useState(null)
   const [isGenerating, setIsGenerating] = useState(false)
+  const [notification, setNotification] = useState(null)
+
+  const showNotification = (msg, type = 'success') => {
+    setNotification({ msg, type })
+    setTimeout(() => setNotification(null), 4000)
+  }
 
   const handleGenerateRecommendations = () => {
     setIsGenerating(true)
     setTimeout(() => {
       setIsGenerating(false)
-      alert('Recommendations generated successfully!')
-    }, 2000)
+      showNotification('✅ Fresh AI recommendations computed across open shortfalls.')
+    }, 1200)
   }
 
   const handleApprove = (decision) => {
-    alert(`Decision ${decision.id} approved!`)
+    setDecisions(prev => prev.map(d => d.id === decision.id ? { ...d, status: 'approved' } : d))
+    showNotification(`✅ Decision ${decision.id} approved! Order dispatched.`)
     setSelectedDecision(null)
   }
 
   const handleModify = (decision) => {
-    alert(`Decision ${decision.id} sent for modification!`)
+    showNotification(`ℹ️ Decision ${decision.id} queued for parameter adjustments.`, 'info')
     setSelectedDecision(null)
   }
 
   const handleReject = (decision) => {
-    alert(`Decision ${decision.id} rejected!`)
+    setDecisions(prev => prev.map(d => d.id === decision.id ? { ...d, status: 'rejected' } : d))
+    showNotification(`❌ Decision ${decision.id} declined.`, 'error')
     setSelectedDecision(null)
   }
 
   const handleSendForFinance = (decision) => {
-    alert(`Decision ${decision.id} sent for finance approval!`)
+    showNotification(`📩 Decision ${decision.id} submitted for executive finance sign-off.`)
     setSelectedDecision(null)
   }
 
-  // Decision & Recommendation Agent Data
-  const decisions = [
+  // Decision Data
+  const [decisions, setDecisions] = useState([
     {
       id: 'DEC-001',
       title: 'Electronic Control Unit Supplier Selection',
       category: 'Electronics',
       priority: 'critical',
       status: 'pending',
-      timestamp: '2024-01-12 14:30',
+      timestamp: 'Today, 14:30',
       
-      // Problem Detected
-      problem: 'Critical shortage of Electronic Control Units (ECU) with only 3,000 units available against requirement of 10,000 units. Production line stoppage risk if not procured by January 28, 2024.',
+      problem: 'Critical shortage of Electronic Control Units (ECU) with only 3,000 units available against 10,000 required. Line halt risk in 5 days.',
+      rootCause: 'Surge in Q1 orders (+15% vs forecast) and primary supplier capacity ceiling.',
       
-      // Root Cause Analysis
-      rootCause: 'Combination of increased customer demand (15% above forecast) and supplier capacity constraints. Current primary supplier (TechCorp) operating at 95% capacity.',
-      
-      // Candidate Actions
       candidateActions: [
         {
           id: 1,
-          action: 'Select Supplier A (TechCorp Industries)',
+          action: 'Select TechCorp Industries',
           cost: 970000,
           delivery: 14,
           quality: 95,
           risk: 'low',
           productionImpact: 'minimal',
-          tradeoffs: 'Highest quality and fastest delivery, but single-source dependency risk.',
+          tradeoffs: 'Highest quality and fast delivery; single-source exposure.',
         },
         {
           id: 2,
-          action: 'Select Supplier C (AutoParts Premium)',
+          action: 'Select AutoParts Premium',
           cost: 910000,
           delivery: 12,
           quality: 90,
           risk: 'low',
           productionImpact: 'minimal',
-          tradeoffs: 'Fastest delivery and lower cost, but slightly lower quality score.',
+          tradeoffs: 'Fastest delivery and lower cost, slightly lower QA rating.',
         },
         {
           id: 3,
-          action: 'Split order between Supplier A and Supplier C',
+          action: 'Split order between TechCorp (60%) and AutoParts (40%)',
           cost: 940000,
           delivery: 13,
           quality: 93,
           risk: 'very low',
           productionImpact: 'minimal',
-          tradeoffs: 'Balanced approach with reduced single-source dependency risk.',
+          tradeoffs: 'Optimal resilience and dual-source buffer.',
         },
       ],
       
-      // AI Recommended Decision
       recommendedAction: {
-        action: 'Split order between Supplier A (TechCorp Industries) and Supplier C (AutoParts Premium)',
+        action: 'Split order between TechCorp (60%) and AutoParts (40%)',
         aiConfidence: 94,
         expectedRiskReduction: '35%',
         expectedCostImpact: '+2.8%',
-        reasoning: 'This approach balances cost, delivery speed, and risk reduction. Splitting the order reduces single-source dependency risk by 35% while maintaining quality standards. Although there is a 2.8% cost increase compared to lowest option, the risk reduction and supply chain resilience justify the additional cost.',
+        reasoning: 'Reduces single-supplier shock exposure by 35% while sustaining strict QA thresholds and fulfilling critical 14-day production deadlines.',
         risksReduced: ['Single supplier dependency', 'Production stoppage risk', 'Quality variance'],
-        tradeoffs: 'Slightly higher cost (2.8%) but significantly lower risk profile. Delivery time is optimal at 13 days average.',
-        nextSteps: ['Approve split order strategy', 'Allocate 60% to TechCorp Industries', 'Allocate 40% to AutoParts Premium', 'Set up milestone tracking for both suppliers'],
+        tradeoffs: 'Nominal 2.8% cost increase against lowest bid, offset by zero assembly disruption risk.',
+        nextSteps: ['Approve dual-allocation PO', 'Dispatch binding contracts', 'Enable telemetry milestones'],
       },
     },
     {
@@ -110,11 +112,10 @@ const DecisionRecommendation = () => {
       category: 'Raw Materials',
       priority: 'critical',
       status: 'pending',
-      timestamp: '2024-01-12 11:00',
+      timestamp: 'Today, 11:00',
       
-      problem: 'Critical shortage of Steel Sheets with only 450 units available against requirement of 30,000 units. Multiple assembly lines at risk of halt.',
-      
-      rootCause: 'Supplier (IndustrialX) showing performance decline with 82% on-time delivery rate and increased quality issues. Recent operational problems affecting capacity.',
+      problem: 'Shortage of Steel Sheets with only 450 units on hand vs requirement of 30,000 units.',
+      rootCause: 'Primary vendor performance slump (82% on-time rate) and production bottlenecks.',
       
       candidateActions: [
         {
@@ -125,17 +126,17 @@ const DecisionRecommendation = () => {
           quality: 80,
           risk: 'high',
           productionImpact: 'high',
-          tradeoffs: 'Lowest cost but high risk of delays and quality issues.',
+          tradeoffs: 'Lowest cost but high delay risk.',
         },
         {
           id: 2,
-          action: 'Switch to Alternative Supplier (GlobalSupply)',
+          action: 'Switch to GlobalSupply',
           cost: 262500,
           delivery: 25,
           quality: 70,
           risk: 'high',
           productionImpact: 'medium',
-          tradeoffs: 'Higher cost and longer delivery, but diversifies supplier base.',
+          tradeoffs: 'Higher cost, longer lead time.',
         },
         {
           id: 3,
@@ -145,32 +146,31 @@ const DecisionRecommendation = () => {
           quality: 75,
           risk: 'medium',
           productionImpact: 'medium',
-          tradeoffs: 'Balanced approach with reduced risk but longer delivery time.',
+          tradeoffs: 'Mitigates supplier concentration.',
         },
       ],
       
       recommendedAction: {
-        action: 'Identify new supplier and split order (60% IndustrialX, 40% new supplier)',
+        action: 'Split order (60% IndustrialX, 40% GlobalSupply) with milestone audit',
         aiConfidence: 88,
         expectedRiskReduction: '25%',
         expectedCostImpact: '+5.2%',
-        reasoning: 'IndustrialX performance decline requires immediate action. Splitting order reduces dependency while maintaining relationship. Need to identify new supplier with better performance metrics to replace IndustrialX long-term.',
-        risksReduced: ['Single supplier dependency', 'Delivery delays', 'Quality issues'],
-        tradeoffs: '5.2% cost increase and 3 days longer delivery, but significantly reduced risk profile.',
-        nextSteps: ['Identify new suppliers', 'Conduct supplier evaluation', 'Split initial order', 'Phase out IndustrialX gradually'],
+        reasoning: 'Isolates supplier decline while preventing sudden single-source cutoff during peak assembly cycle.',
+        risksReduced: ['Supply interruption', 'Lead time uncertainty'],
+        tradeoffs: '+5.2% premium with controlled risk exposure.',
+        nextSteps: ['Qualify secondary batch', 'Audit IndustrialX QA line'],
       },
     },
     {
       id: 'DEC-003',
-      title: 'Circuit Board Procurement Decision',
+      title: 'Circuit Board Type B Allocation',
       category: 'Electronics',
       priority: 'high',
       status: 'approved',
-      timestamp: '2024-01-10 09:30',
+      timestamp: 'Yesterday, 09:30',
       
-      problem: 'Shortage of Circuit Boards Type B with 1,200 units available against requirement of 5,500 units. Customer order delays risk.',
-      
-      rootCause: 'Unexpected increase in customer orders for products requiring Type B circuit boards.',
+      problem: 'Requirement of 5,500 units vs 1,200 in stock.',
+      rootCause: 'Sudden demand ramp-up from Q1 sales sprint.',
       
       candidateActions: [
         {
@@ -181,7 +181,7 @@ const DecisionRecommendation = () => {
           quality: 95,
           risk: 'low',
           productionImpact: 'minimal',
-          tradeoffs: 'High quality but higher cost.',
+          tradeoffs: 'Premium pricing.',
         },
         {
           id: 2,
@@ -191,22 +191,22 @@ const DecisionRecommendation = () => {
           quality: 90,
           risk: 'low',
           productionImpact: 'minimal',
-          tradeoffs: 'Lower cost and faster delivery, slightly lower quality.',
+          tradeoffs: 'Fast turnaround, 8.3% lower cost.',
         },
       ],
       
       recommendedAction: {
-        action: 'Select AutoParts Premium for faster delivery',
+        action: 'Select AutoParts Premium for expedited 12-day delivery',
         aiConfidence: 92,
         expectedRiskReduction: '15%',
         expectedCostImpact: '-8.3%',
-        reasoning: 'AutoParts Premium offers faster delivery (12 days vs 14 days) and lower cost. Quality score of 90 is acceptable for this component. Cost savings of 8.3% and faster delivery justify the slight quality difference.',
-        risksReduced: ['Customer order delays', 'Production bottlenecks'],
-        tradeoffs: 'Slightly lower quality (90 vs 95) but significant cost and delivery benefits.',
-        nextSteps: ['Approve AutoParts Premium selection', 'Place order immediately', 'Monitor quality closely'],
+        reasoning: 'Fastest delivery with 8.3% direct cost reduction meets production cutoff with acceptable QA score.',
+        risksReduced: ['Production bottleneck', 'Excessive premium expense'],
+        tradeoffs: 'QA score 90 vs 95.',
+        nextSteps: ['PO executed', 'Delivery scheduled'],
       },
     },
-  ]
+  ])
 
   const getStatusBadge = (status) => {
     const variants = {
@@ -216,12 +216,12 @@ const DecisionRecommendation = () => {
       modified: 'accent',
     }
     const labels = {
-      pending: 'Pending',
+      pending: 'Pending Review',
       approved: 'Approved',
-      rejected: 'Rejected',
+      rejected: 'Declined',
       modified: 'Modified',
     }
-    return <Badge variant={variants[status]}>{labels[status]}</Badge>
+    return <Badge variant={variants[status]} className="text-[10px]">{labels[status] || status}</Badge>
   }
 
   const getPriorityBadge = (priority) => {
@@ -231,7 +231,7 @@ const DecisionRecommendation = () => {
       medium: 'primary',
       low: 'success',
     }
-    return <Badge variant={variants[priority]}>{priority.charAt(0).toUpperCase() + priority.slice(1)}</Badge>
+    return <Badge variant={variants[priority]} className="text-[10px]">{priority.toUpperCase()}</Badge>
   }
 
   const filteredDecisions = decisions.filter(decision => {
@@ -241,142 +241,129 @@ const DecisionRecommendation = () => {
     return matchesSearch && matchesStatus
   })
 
-  // Option Comparison Chart Data
   const optionComparisonData = [
-    { option: 'Option 1', cost: 97, delivery: 14, quality: 95, risk: 20 },
-    { option: 'Option 2', cost: 91, delivery: 12, quality: 90, risk: 20 },
-    { option: 'Option 3', cost: 94, delivery: 13, quality: 93, risk: 10 },
+    { option: 'Option 1', cost: 97, delivery: 14, quality: 95 },
+    { option: 'Option 2', cost: 91, delivery: 12, quality: 90 },
+    { option: 'Option 3', cost: 94, delivery: 13, quality: 93 },
   ]
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-navy-900">Decision & Recommendation Agent</h1>
-          <p className="text-gray-600 mt-1">AI-powered decision support and recommendations</p>
+    <div className="space-y-5 max-w-7xl mx-auto">
+      {/* Toast Notification */}
+      {notification && (
+        <div className={`p-3 rounded-lg border text-xs font-semibold flex items-center justify-between shadow-2xs ${
+          notification.type === 'error' ? 'bg-red-50 border-red-200 text-red-800' :
+          notification.type === 'info' ? 'bg-blue-50 border-blue-200 text-blue-800' :
+          'bg-emerald-50 border-emerald-200 text-emerald-800'
+        }`}>
+          <span>{notification.msg}</span>
+          <button onClick={() => setNotification(null)} className="underline text-[11px] ml-4">Dismiss</button>
         </div>
-        <Button onClick={handleGenerateRecommendations} disabled={isGenerating}>
-          <Brain className="w-4 h-4 mr-2" />
-          {isGenerating ? 'Generating...' : 'Generate Recommendations'}
+      )}
+
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-gray-200 shadow-2xs">
+        <div>
+          <h1 className="text-xl font-bold text-navy-900 flex items-center gap-2">
+            <Brain className="w-5 h-5 text-purple-600" />
+            Decision & Prescriptive Recommendations
+          </h1>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Multi-criteria procurement trade-off models and autonomous candidate optimization
+          </p>
+        </div>
+
+        <Button
+          size="sm"
+          onClick={handleGenerateRecommendations}
+          disabled={isGenerating}
+          className="bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold h-8 shadow-2xs"
+        >
+          <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+          {isGenerating ? 'Analyzing...' : 'Re-run Prescriptive AI'}
         </Button>
       </div>
 
-      {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-primary-100 rounded-lg">
-                <Target className="w-6 h-6 text-primary-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Total Decisions</p>
-                <p className="text-2xl font-bold text-navy-900">{decisions.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-warning-100 rounded-lg">
-                <Clock className="w-6 h-6 text-warning-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Pending Review</p>
-                <p className="text-2xl font-bold text-warning-600">{decisions.filter(d => d.status === 'pending').length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-danger-100 rounded-lg">
-                <AlertTriangle className="w-6 h-6 text-danger-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Critical Priority</p>
-                <p className="text-2xl font-bold text-danger-600">{decisions.filter(d => d.priority === 'critical').length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-accent-100 rounded-lg">
-                <Brain className="w-6 h-6 text-accent-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Avg AI Confidence</p>
-                <p className="text-2xl font-bold text-navy-900">{Math.round(decisions.reduce((sum, d) => sum + d.recommendedAction.aiConfidence, 0) / decisions.length)}%</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Compact Overview Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="p-3 bg-white border border-gray-200 rounded-xl shadow-2xs">
+          <span className="text-[11px] font-medium text-gray-500 block">Total Decisions</span>
+          <p className="text-xl font-bold text-navy-900 mt-0.5">{decisions.length}</p>
+        </div>
+        <div className="p-3 bg-white border border-amber-200 rounded-xl shadow-2xs">
+          <span className="text-[11px] font-medium text-amber-700 block">Pending Review</span>
+          <p className="text-xl font-bold text-amber-600 mt-0.5">{decisions.filter(d => d.status === 'pending').length}</p>
+        </div>
+        <div className="p-3 bg-white border border-red-200 rounded-xl shadow-2xs">
+          <span className="text-[11px] font-medium text-red-700 block">Critical Priority</span>
+          <p className="text-xl font-bold text-red-600 mt-0.5">{decisions.filter(d => d.priority === 'critical').length}</p>
+        </div>
+        <div className="p-3 bg-white border border-purple-200 rounded-xl shadow-2xs">
+          <span className="text-[11px] font-medium text-purple-700 block">Avg AI Confidence</span>
+          <p className="text-xl font-bold text-purple-700 mt-0.5">
+            {Math.round(decisions.reduce((sum, d) => sum + d.recommendedAction.aiConfidence, 0) / decisions.length)}%
+          </p>
+        </div>
       </div>
 
       {/* Filters */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <Input
-                  placeholder="Search decision title or category..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-            <div className="w-48">
-              <Select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
-                <option value="all">All Status</option>
-                <option value="pending">Pending</option>
-                <option value="approved">Approved</option>
-                <option value="rejected">Rejected</option>
-                <option value="modified">Modified</option>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="flex flex-col sm:flex-row items-center gap-3 bg-white p-3 rounded-xl border border-gray-200 shadow-2xs">
+        <div className="flex-1 relative w-full">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Input
+            placeholder="Search decision title or category..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-9 h-9 text-xs"
+          />
+        </div>
+        <div className="w-full sm:w-48">
+          <Select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="h-9 text-xs"
+          >
+            <option value="all">All Statuses</option>
+            <option value="pending">Pending Review</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Declined</option>
+          </Select>
+        </div>
+      </div>
 
       {/* Decisions Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredDecisions.map((decision) => (
-          <Card key={decision.id} className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setSelectedDecision(decision)}>
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div>
-                  <CardTitle className="text-lg">{decision.title}</CardTitle>
-                  <CardDescription>{decision.category}</CardDescription>
+          <Card
+            key={decision.id}
+            className="border border-gray-200 hover:border-blue-400 transition-all hover:shadow-md cursor-pointer bg-white"
+            onClick={() => setSelectedDecision(decision)}
+          >
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <h3 className="font-bold text-sm text-navy-900 truncate">{decision.title}</h3>
+                  <p className="text-[11px] text-gray-500">{decision.category} &bull; {decision.id}</p>
                 </div>
                 {getPriorityBadge(decision.priority)}
               </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Clock className="w-4 h-4" />
-                <span>{decision.timestamp}</span>
-              </div>
-              
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <p className="text-xs text-gray-600 mb-1">AI Confidence</p>
-                <div className="flex items-center justify-between">
-                  <span className="text-2xl font-bold text-accent-600">{decision.recommendedAction.aiConfidence}%</span>
-                  {getStatusBadge(decision.status)}
+
+              <div className="p-2.5 bg-gray-50 rounded-lg border border-gray-100 flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] text-gray-400 block">AI Recommendation</span>
+                  <span className="text-xs font-bold text-navy-900 line-clamp-1">{decision.recommendedAction.action}</span>
                 </div>
+                <span className="text-xs font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200 shrink-0 ml-2">
+                  {decision.recommendedAction.aiConfidence}%
+                </span>
               </div>
 
-              <div className="text-xs text-gray-500">
-                <span className="font-medium">Expected Impact:</span> {decision.recommendedAction.expectedCostImpact} cost, {decision.recommendedAction.expectedRiskReduction} risk reduction
+              <div className="flex items-center justify-between pt-1 text-xs">
+                {getStatusBadge(decision.status)}
+                <span className="text-blue-600 font-semibold text-[11px] flex items-center gap-1 hover:underline">
+                  Inspect Trade-offs
+                  <ArrowRight className="w-3 h-3" />
+                </span>
               </div>
             </CardContent>
           </Card>
@@ -385,217 +372,135 @@ const DecisionRecommendation = () => {
 
       {/* Decision Detail Modal */}
       {selectedDecision && (
-        <Card className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <Card className="bg-white w-full max-w-5xl max-h-[90vh] overflow-y-auto m-4">
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div>
-                  <CardTitle className="text-2xl">{selectedDecision.title}</CardTitle>
-                  <CardDescription>{selectedDecision.id} • {selectedDecision.category} • {selectedDecision.timestamp}</CardDescription>
-                </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-2xs p-4">
+          <div className="bg-white w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl border border-gray-200">
+            <div className="p-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+              <div>
                 <div className="flex items-center gap-2">
+                  <h2 className="text-base font-bold text-navy-900">{selectedDecision.title}</h2>
                   {getPriorityBadge(selectedDecision.priority)}
                   {getStatusBadge(selectedDecision.status)}
-                  <Button variant="secondary" size="sm" onClick={() => setSelectedDecision(null)}>
-                    <X className="w-4 h-4" />
-                  </Button>
+                </div>
+                <p className="text-[11px] text-gray-500 mt-0.5">
+                  {selectedDecision.id} &bull; {selectedDecision.category} &bull; {selectedDecision.timestamp}
+                </p>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setSelectedDecision(null)} className="h-8 w-8 p-0">
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              {/* Problem / Root Cause */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="p-3 bg-red-50/70 border border-red-200 rounded-xl text-xs">
+                  <span className="font-bold text-red-900 block mb-1 uppercase tracking-wider text-[10px]">
+                    Identified Shortage
+                  </span>
+                  <p className="text-red-800">{selectedDecision.problem}</p>
+                </div>
+                <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl text-xs">
+                  <span className="font-bold text-amber-900 block mb-1 uppercase tracking-wider text-[10px]">
+                    Root Cause
+                  </span>
+                  <p className="text-amber-800">{selectedDecision.rootCause}</p>
                 </div>
               </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Problem Detected */}
-              <Card className="border-2 border-danger-200 bg-danger-50">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-danger-900">
-                    <AlertTriangle className="w-5 h-5 text-danger-600" />
-                    Problem Detected
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-danger-800">{selectedDecision.problem}</p>
-                </CardContent>
-              </Card>
 
-              {/* Root Cause Analysis */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Root Cause Analysis</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-gray-700">{selectedDecision.rootCause}</p>
-                </CardContent>
-              </Card>
-
-              {/* Candidate Actions */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Candidate Actions</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {selectedDecision.candidateActions.map((action) => (
-                      <div key={action.id} className="p-4 border rounded-lg hover:bg-gray-50">
-                        <div className="flex items-start justify-between mb-3">
-                          <h4 className="font-semibold text-navy-900">{action.action}</h4>
-                          <Badge variant={action.id === 3 ? 'success' : 'default'}>
-                            {action.id === 3 ? 'Recommended' : `Option ${action.id}`}
-                          </Badge>
+              {/* Candidate Strategies */}
+              <div>
+                <h4 className="text-xs font-bold text-navy-900 uppercase tracking-wider mb-2">
+                  Strategy Options Evaluated
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {selectedDecision.candidateActions.map(action => (
+                    <div
+                      key={action.id}
+                      className={`p-3 rounded-xl border text-xs ${
+                        action.id === 3 ? 'bg-purple-50/50 border-purple-300' : 'bg-gray-50 border-gray-200'
+                      }`}
+                    >
+                      <span className="font-bold text-navy-900 block mb-1">
+                        Option {action.id} {action.id === 3 && '★ AI Choice'}
+                      </span>
+                      <p className="text-gray-700 font-medium mb-2">{action.action}</p>
+                      <div className="space-y-1 text-[11px] bg-white p-2 rounded-lg border border-gray-100">
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Cost:</span>
+                          <span className="font-bold">₹{action.cost.toLocaleString()}</span>
                         </div>
-                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
-                          <div>
-                            <span className="text-gray-600">Cost</span>
-                            <p className="font-medium">₹{action.cost.toLocaleString()}</p>
-                          </div>
-                          <div>
-                            <span className="text-gray-600">Delivery</span>
-                            <p className="font-medium">{action.delivery} days</p>
-                          </div>
-                          <div>
-                            <span className="text-gray-600">Quality</span>
-                            <p className="font-medium">{action.quality}/100</p>
-                          </div>
-                          <div>
-                            <span className="text-gray-600">Risk</span>
-                            <p className="font-medium capitalize">{action.risk}</p>
-                          </div>
-                          <div>
-                            <span className="text-gray-600">Impact</span>
-                            <p className="font-medium capitalize">{action.productionImpact}</p>
-                          </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">Delivery:</span>
+                          <span className="font-bold text-blue-700">{action.delivery} Days</span>
                         </div>
-                        <p className="text-xs text-gray-500 mt-2">{action.tradeoffs}</p>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Option Comparison Chart */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Option Comparison</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ResponsiveContainer width="100%" height={250}>
-                    <BarChart data={optionComparisonData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="option" />
-                      <YAxis />
-                      <Tooltip />
-                      <Bar dataKey="cost" fill="#3367d6" name="Cost (₹K)" />
-                      <Bar dataKey="delivery" fill="#22c55e" name="Delivery (Days)" />
-                      <Bar dataKey="quality" fill="#f59e0b" name="Quality Score" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </CardContent>
-              </Card>
-
-              {/* AI Recommended Decision */}
-              <Card className="border-2 border-accent-500 bg-accent-50">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-accent-900">
-                    <Brain className="w-5 h-5 text-accent-600" />
-                    AI Recommended Decision
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="p-4 bg-white rounded-lg border border-accent-200">
-                    <p className="font-semibold text-accent-900 mb-2">{selectedDecision.recommendedAction.action}</p>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                      <div>
-                        <span className="text-gray-600">AI Confidence</span>
-                        <p className="text-xl font-bold text-accent-600">{selectedDecision.recommendedAction.aiConfidence}%</p>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">Risk Reduction</span>
-                        <p className="text-xl font-bold text-success-600">{selectedDecision.recommendedAction.expectedRiskReduction}</p>
-                      </div>
-                      <div>
-                        <span className="text-gray-600">Cost Impact</span>
-                        <p className={`text-xl font-bold ${selectedDecision.recommendedAction.expectedCostImpact.startsWith('-') ? 'text-success-600' : 'text-danger-600'}`}>
-                          {selectedDecision.recommendedAction.expectedCostImpact}
-                        </p>
+                        <div className="flex justify-between">
+                          <span className="text-gray-500">QA Score:</span>
+                          <span className="font-bold text-emerald-700">{action.quality}/100</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  ))}
+                </div>
+              </div>
 
-                  <div>
-                    <h4 className="font-semibold text-accent-900 mb-2">AI Reasoning</h4>
-                    <p className="text-sm text-accent-800">{selectedDecision.recommendedAction.reasoning}</p>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <h4 className="font-semibold text-accent-900 mb-2">Risks Reduced</h4>
-                      <ul className="space-y-1">
-                        {selectedDecision.recommendedAction.risksReduced.map((risk, index) => (
-                          <li key={index} className="flex items-center gap-2 text-sm text-accent-800">
-                            <CheckCircle className="w-4 h-4 text-success-600" />
-                            {risk}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-accent-900 mb-2">Trade-offs</h4>
-                      <p className="text-sm text-accent-800">{selectedDecision.recommendedAction.tradeoffs}</p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h4 className="font-semibold text-accent-900 mb-2">Next Steps</h4>
-                    <ul className="space-y-1">
-                      {selectedDecision.recommendedAction.nextSteps.map((step, index) => (
-                        <li key={index} className="flex items-center gap-2 text-sm text-accent-800">
-                          <ArrowRight className="w-4 h-4 text-accent-600" />
-                          {step}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Human Decision Notice */}
-              <Card className="border-2 border-primary-500 bg-primary-50">
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
-                    <User className="w-5 h-5 text-primary-600 mt-0.5" />
-                    <div>
-                      <p className="font-semibold text-primary-900 mb-1">Human Final Decision</p>
-                      <p className="text-sm text-primary-800">AI provides recommendations based on data analysis, but humans make the final decision. Please review the recommendation and take appropriate action.</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              {/* AI Recommendation Box */}
+              <div className="p-4 bg-emerald-50/80 border border-emerald-300 rounded-xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-emerald-950 uppercase tracking-wider flex items-center gap-1.5">
+                    <Brain className="w-4 h-4 text-emerald-700" />
+                    AI Prescriptive Recommendation
+                  </span>
+                  <span className="text-xs font-bold text-emerald-800 bg-white px-2 py-0.5 rounded border border-emerald-200">
+                    {selectedDecision.recommendedAction.aiConfidence}% Confidence
+                  </span>
+                </div>
+                <p className="text-xs font-bold text-emerald-900">{selectedDecision.recommendedAction.action}</p>
+                <p className="text-xs text-emerald-800 leading-relaxed">{selectedDecision.recommendedAction.reasoning}</p>
+              </div>
 
               {/* Action Buttons */}
               {selectedDecision.status === 'pending' && (
-                <div className="flex gap-3 pt-4 border-t">
-                  <Button variant="success" className="flex-1" onClick={() => handleApprove(selectedDecision)}>
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                    Approve Recommendation
+                <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-gray-200">
+                  <Button
+                    size="sm"
+                    onClick={() => handleApprove(selectedDecision)}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs h-8"
+                  >
+                    <Check className="w-3.5 h-3.5 mr-1" />
+                    Approve & Issue PO
                   </Button>
-                  <Button variant="warning" className="flex-1" onClick={() => handleModify(selectedDecision)}>
-                    <Edit className="w-4 h-4 mr-2" />
-                    Modify Recommendation
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => handleModify(selectedDecision)}
+                    className="text-xs font-semibold h-8"
+                  >
+                    <Edit className="w-3.5 h-3.5 mr-1" />
+                    Modify
                   </Button>
-                  <Button variant="danger" className="flex-1" onClick={() => handleReject(selectedDecision)}>
-                    <X className="w-4 h-4 mr-2" />
-                    Reject Recommendation
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => handleReject(selectedDecision)}
+                    className="text-red-600 hover:bg-red-50 text-xs font-semibold h-8"
+                  >
+                    <X className="w-3.5 h-3.5 mr-1" />
+                    Reject
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleSendForFinance(selectedDecision)}
+                    className="text-xs font-semibold h-8 ml-auto"
+                  >
+                    <Send className="w-3.5 h-3.5 mr-1" />
+                    Finance Sign-off
                   </Button>
                 </div>
               )}
-
-              {selectedDecision.status === 'pending' && (
-                <Button variant="secondary" className="w-full" onClick={() => handleSendForFinance(selectedDecision)}>
-                  <Send className="w-4 h-4 mr-2" />
-                  Send for Finance Approval
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-        </Card>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

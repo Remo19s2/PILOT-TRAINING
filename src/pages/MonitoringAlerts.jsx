@@ -5,9 +5,13 @@ import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Select } from '../components/ui/Select'
 import { Progress } from '../components/ui/Progress'
-import { Bell, AlertTriangle, CheckCircle, Clock, Truck, Package, Users, Activity, Search, Filter, RefreshCw, Zap, Eye, XCircle, Loader2 } from 'lucide-react'
+import { 
+  Bell, AlertTriangle, CheckCircle, Clock, Truck, Package, Users, 
+  Activity, Search, Filter, RefreshCw, Zap, Eye, XCircle, Loader2,
+  ChevronDown, ChevronUp, ShieldAlert, Sparkles
+} from 'lucide-react'
 import { fireMonitoringEvent, fireEvent } from '../api/events'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, AreaChart, Area } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts'
 
 const MonitoringAlerts = () => {
   const [searchTerm, setSearchTerm] = useState('')
@@ -15,6 +19,11 @@ const MonitoringAlerts = () => {
   const [typeFilter, setTypeFilter] = useState('all')
   const [sendingId, setSendingId] = useState(null)
   const [toast, setToast] = useState(null)
+  const [expandedAlerts, setExpandedAlerts] = useState({})
+
+  const toggleExpand = (id) => {
+    setExpandedAlerts(prev => ({ ...prev, [id]: !prev[id] }))
+  }
 
   const showToast = (msg, ok = true) => {
     setToast({ msg, ok })
@@ -45,7 +54,7 @@ const MonitoringAlerts = () => {
         impact: alert.impact,
         suggested_action: alert.suggestedAction,
       })
-      showToast(`✅ Event sent to n8n: ${alert.title}`, true)
+      showToast(`✅ Event dispatched to Agent Orchestrator: ${alert.title}`, true)
     } catch (err) {
       showToast(`❌ Failed to send event: ${err.message}`, false)
     } finally {
@@ -57,14 +66,13 @@ const MonitoringAlerts = () => {
     setSendingId('reanalysis')
     try {
       await fireEvent('OTHER', 'HIGH', {}, { trigger: 'manual_reanalysis', source_page: 'MonitoringAlerts' })
-      showToast('✅ Re-analysis triggered — n8n workflow started', true)
+      showToast('✅ Re-analysis triggered — Master Agent workflow started', true)
     } catch (err) {
       showToast(`❌ Failed: ${err.message}`, false)
     } finally {
       setSendingId(null)
     }
   }
-
 
   // Monitoring & Alert Agent Data
   const alerts = [
@@ -183,7 +191,7 @@ const MonitoringAlerts = () => {
       warning: 'primary',
       info: 'default',
     }
-    return <Badge variant={variants[severity]}>{severity.charAt(0).toUpperCase() + severity.slice(1)}</Badge>
+    return <Badge variant={variants[severity]} className="text-xs px-2 py-0.5">{severity.toUpperCase()}</Badge>
   }
 
   const getStatusBadge = (status) => {
@@ -192,7 +200,7 @@ const MonitoringAlerts = () => {
       resolved: 'success',
       acknowledged: 'primary',
     }
-    return <Badge variant={variants[status]}>{status.charAt(0).toUpperCase() + status.slice(1)}</Badge>
+    return <Badge variant={variants[status]} className="text-xs px-2 py-0.5">{status.toUpperCase()}</Badge>
   }
 
   const getTypeIcon = (type) => {
@@ -202,306 +210,290 @@ const MonitoringAlerts = () => {
       supplier_performance: Users,
       shipment_disruption: Activity,
       price_increase: AlertTriangle,
-      supplier_risk: AlertTriangle,
+      supplier_risk: ShieldAlert,
     }
     return icons[type] || AlertTriangle
   }
 
   const filteredAlerts = alerts.filter(alert => {
     const matchesSearch = alert.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         alert.description.toLowerCase().includes(searchTerm.toLowerCase())
+                         alert.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (alert.entity && alert.entity.toLowerCase().includes(searchTerm.toLowerCase()))
     const matchesSeverity = severityFilter === 'all' || alert.severity === severityFilter
     const matchesType = typeFilter === 'all' || alert.type === typeFilter
     return matchesSearch && matchesSeverity && matchesType
   })
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 max-w-7xl mx-auto pb-8">
       {/* Toast Notification */}
       {toast && (
-        <div className={`fixed top-4 right-4 z-50 px-5 py-3 rounded-lg shadow-lg text-white text-sm font-medium transition-all ${toast.ok ? 'bg-green-600' : 'bg-red-600'}`}>
+        <div className={`fixed top-4 right-4 z-50 px-4 py-2.5 rounded-lg shadow-xl text-white text-sm font-semibold transition-all flex items-center gap-2 ${toast.ok ? 'bg-emerald-600' : 'bg-rose-600'}`}>
           {toast.msg}
         </div>
       )}
 
-      <div className="flex items-center justify-between">
+      {/* Header Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
         <div>
-          <h1 className="text-2xl font-bold text-navy-900">Monitoring & Alerts</h1>
-          <p className="text-gray-600 mt-1">Monitoring & Alert Agent - Real-time monitoring and intelligent alerting</p>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Monitoring & Alerts Center</h1>
+            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
+              <Sparkles className="w-3 h-3 mr-1 text-indigo-500" />
+              Live Telemetry
+            </span>
+          </div>
+          <p className="text-xs text-slate-500 mt-0.5">Automated multi-tier supply chain anomaly detection and exception handling</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="secondary">
-            <RefreshCw className="w-4 h-4 mr-2" />
+          <Button variant="secondary" size="sm" onClick={() => window.location.reload()}>
+            <RefreshCw className="w-3.5 h-3.5 mr-1.5" />
             Refresh
           </Button>
-          <Button onClick={handleTriggerReAnalysis} disabled={sendingId === 'reanalysis'}>
+          <Button size="sm" onClick={handleTriggerReAnalysis} disabled={sendingId === 'reanalysis'} className="bg-indigo-600 hover:bg-indigo-700 text-white">
             {sendingId === 'reanalysis'
-              ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              : <Zap className="w-4 h-4 mr-2" />
+              ? <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Analyzing...</>
+              : <><Zap className="w-3.5 h-3.5 mr-1.5" />Trigger Re-Analysis</>
             }
-            {sendingId === 'reanalysis' ? 'Sending...' : 'Trigger Re-Analysis'}
           </Button>
         </div>
       </div>
 
-
-      {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-danger-100 rounded-lg">
-                <AlertTriangle className="w-6 h-6 text-danger-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Active Alerts</p>
-                <p className="text-2xl font-bold text-danger-600">{alerts.filter(a => a.status === 'active').length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-danger-100 rounded-lg">
-                <Bell className="w-6 h-6 text-danger-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Critical</p>
-                <p className="text-2xl font-bold text-danger-600">{alerts.filter(a => a.severity === 'critical').length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-success-100 rounded-lg">
-                <CheckCircle className="w-6 h-6 text-success-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Resolved Today</p>
-                <p className="text-2xl font-bold text-success-600">{alerts.filter(a => a.status === 'resolved').length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-primary-100 rounded-lg">
-                <Activity className="w-6 h-6 text-primary-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Monitored Entities</p>
-                <p className="text-2xl font-bold text-navy-900">{monitoringMetrics.reduce((sum, m) => sum + m.monitored, 0)}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Compact Overview Strip */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="bg-white p-3.5 rounded-xl border border-rose-100 bg-rose-50/30 flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium text-slate-500">Active Alerts</p>
+            <p className="text-2xl font-bold text-rose-600 mt-0.5">{alerts.filter(a => a.status === 'active').length}</p>
+          </div>
+          <div className="p-2.5 bg-rose-100 text-rose-600 rounded-lg">
+            <AlertTriangle className="w-5 h-5" />
+          </div>
+        </div>
+        <div className="bg-white p-3.5 rounded-xl border border-amber-100 bg-amber-50/30 flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium text-slate-500">Critical Severity</p>
+            <p className="text-2xl font-bold text-amber-600 mt-0.5">{alerts.filter(a => a.severity === 'critical').length}</p>
+          </div>
+          <div className="p-2.5 bg-amber-100 text-amber-600 rounded-lg">
+            <Bell className="w-5 h-5" />
+          </div>
+        </div>
+        <div className="bg-white p-3.5 rounded-xl border border-emerald-100 bg-emerald-50/30 flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium text-slate-500">Resolved Today</p>
+            <p className="text-2xl font-bold text-emerald-600 mt-0.5">{alerts.filter(a => a.status === 'resolved').length}</p>
+          </div>
+          <div className="p-2.5 bg-emerald-100 text-emerald-600 rounded-lg">
+            <CheckCircle className="w-5 h-5" />
+          </div>
+        </div>
+        <div className="bg-white p-3.5 rounded-xl border border-indigo-100 bg-indigo-50/30 flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium text-slate-500">Monitored Entities</p>
+            <p className="text-2xl font-bold text-indigo-700 mt-0.5">{monitoringMetrics.reduce((sum, m) => sum + m.monitored, 0)}</p>
+          </div>
+          <div className="p-2.5 bg-indigo-100 text-indigo-600 rounded-lg">
+            <Activity className="w-5 h-5" />
+          </div>
+        </div>
       </div>
 
-      {/* Monitoring Metrics */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Monitoring Health by Category</CardTitle>
-          <CardDescription>Real-time monitoring status across all categories</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {monitoringMetrics.map((metric) => (
-              <Card key={metric.category} className="bg-gray-50">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-semibold text-navy-900">{metric.category}</h4>
-                    <Badge variant={metric.health >= 90 ? 'success' : metric.health >= 80 ? 'warning' : 'danger'}>
-                      {metric.health}%
-                    </Badge>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Monitored</span>
-                      <span className="font-medium">{metric.monitored}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Alerts</span>
-                      <span className="font-medium text-danger-600">{metric.alerts}</span>
-                    </div>
-                    <Progress value={metric.health} variant={metric.health >= 90 ? 'success' : metric.health >= 80 ? 'warning' : 'danger'} />
-                  </div>
-                </CardContent>
-              </Card>
+      {/* Grid: Health Mini-Cards & Trend Chart */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+        {/* Monitoring Categories */}
+        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Health by Category</h3>
+            <span className="text-[11px] text-slate-400">Live Status</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            {monitoringMetrics.map((m) => (
+              <div key={m.category} className="p-2.5 rounded-lg bg-slate-50 border border-slate-100">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-xs font-semibold text-slate-700">{m.category}</span>
+                  <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${m.health >= 90 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                    {m.health}%
+                  </span>
+                </div>
+                <Progress value={m.health} className="h-1.5" />
+                <div className="flex justify-between text-[10px] text-slate-500 mt-1.5">
+                  <span>{m.monitored} tracked</span>
+                  <span className="font-semibold text-rose-500">{m.alerts} alerts</span>
+                </div>
+              </div>
             ))}
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Alert Trend */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Alert Trend (Last 6 Days)</CardTitle>
-          <CardDescription>Alert volume by severity over time</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={250}>
-            <AreaChart data={alertTrendData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" />
-              <YAxis />
-              <Tooltip />
-              <Area type="monotone" dataKey="critical" stackId="1" stroke="#ef4444" fill="#ef4444" fillOpacity={0.6} name="Critical" />
-              <Area type="monotone" dataKey="high" stackId="1" stroke="#f59e0b" fill="#f59e0b" fillOpacity={0.6} name="High" />
-              <Area type="monotone" dataKey="warning" stackId="1" stroke="#3367d6" fill="#3367d6" fillOpacity={0.6} name="Warning" />
-              <Area type="monotone" dataKey="info" stackId="1" stroke="#6b7280" fill="#6b7280" fillOpacity={0.6} name="Info" />
-            </AreaChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-
-      {/* Filters */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="relative flex-1 min-w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input
-                placeholder="Search alerts..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+        {/* Mini Area Chart */}
+        <div className="lg:col-span-2 bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-2">
+            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Alert Trend (Last 6 Days)</h3>
+            <div className="flex items-center gap-3 text-[11px] text-slate-500">
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-rose-500 inline-block"></span>Critical</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-500 inline-block"></span>High</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-indigo-500 inline-block"></span>Warning</span>
             </div>
-            <Select value={severityFilter} onChange={(e) => setSeverityFilter(e.target.value)} className="w-40">
-              <option value="all">All Severity</option>
-              <option value="critical">Critical</option>
-              <option value="high">High</option>
-              <option value="warning">Warning</option>
-              <option value="info">Info</option>
-            </Select>
-            <Select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="w-40">
-              <option value="all">All Types</option>
-              <option value="delivery_delay">Delivery Delay</option>
-              <option value="inventory_shortage">Inventory Shortage</option>
-              <option value="supplier_performance">Supplier Performance</option>
-              <option value="shipment_disruption">Shipment Disruption</option>
-              <option value="price_increase">Price Increase</option>
-              <option value="supplier_risk">Supplier Risk</option>
-            </Select>
-            <Button variant="secondary" size="sm">
-              <Filter className="w-4 h-4 mr-2" />
-              More Filters
-            </Button>
           </div>
-        </CardContent>
-      </Card>
+          <div className="h-32 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={alertTrendData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="2 2" stroke="#f1f5f9" />
+                <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={{ fontSize: '11px', borderRadius: '8px', border: '1px solid #e2e8f0' }} />
+                <Area type="monotone" dataKey="critical" stroke="#ef4444" fill="#fee2e2" strokeWidth={1.5} />
+                <Area type="monotone" dataKey="high" stroke="#f59e0b" fill="#fef3c7" strokeWidth={1.5} />
+                <Area type="monotone" dataKey="warning" stroke="#6366f1" fill="#e0e7ff" strokeWidth={1.5} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
 
-      {/* Alerts List */}
-      <div className="space-y-4">
-        {filteredAlerts.map((alert) => {
-          const Icon = getTypeIcon(alert.type)
-          return (
-            <Card key={alert.id} className={alert.severity === 'critical' ? 'border-2 border-danger-500' : alert.severity === 'high' ? 'border-2 border-warning-500' : ''}>
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-start gap-3">
-                    <div className={`p-2 rounded-lg ${alert.severity === 'critical' ? 'bg-danger-100' : alert.severity === 'high' ? 'bg-warning-100' : 'bg-primary-100'}`}>
-                      <Icon className={`w-5 h-5 ${alert.severity === 'critical' ? 'text-danger-600' : alert.severity === 'high' ? 'text-warning-600' : 'text-primary-600'}`} />
+      {/* Filter Row */}
+      <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-2.5">
+        <div className="relative flex-1 min-w-[220px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+          <Input
+            placeholder="Search alerts by component, supplier, or title..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-8 h-8 text-xs bg-slate-50 border-slate-200"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Select value={severityFilter} onChange={(e) => setSeverityFilter(e.target.value)} className="w-32 h-8 text-xs">
+            <option value="all">All Severities</option>
+            <option value="critical">Critical</option>
+            <option value="high">High</option>
+            <option value="warning">Warning</option>
+          </Select>
+          <Select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="w-36 h-8 text-xs">
+            <option value="all">All Event Types</option>
+            <option value="delivery_delay">Delivery Delay</option>
+            <option value="inventory_shortage">Inventory Shortage</option>
+            <option value="supplier_performance">Supplier Quality</option>
+            <option value="shipment_disruption">Shipment Disruption</option>
+            <option value="price_increase">Price Surge</option>
+            <option value="supplier_risk">Financial Risk</option>
+          </Select>
+        </div>
+      </div>
+
+      {/* Streamlined High-Density Alerts Feed */}
+      <div className="space-y-2.5">
+        {filteredAlerts.length === 0 ? (
+          <div className="text-center py-10 bg-white rounded-xl border border-slate-200 text-slate-500 text-xs">
+            No alerts match your current filter criteria.
+          </div>
+        ) : (
+          filteredAlerts.map((alert) => {
+            const Icon = getTypeIcon(alert.type)
+            const isExpanded = expandedAlerts[alert.id]
+            const isCritical = alert.severity === 'critical'
+            const isHigh = alert.severity === 'high'
+
+            return (
+              <div 
+                key={alert.id} 
+                className={`bg-white rounded-xl border transition-all duration-150 overflow-hidden shadow-sm ${
+                  isCritical ? 'border-rose-300 hover:border-rose-400' : isHigh ? 'border-amber-300 hover:border-amber-400' : 'border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                {/* Main Alert Summary Bar */}
+                <div className="p-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    <div className={`p-2 rounded-lg shrink-0 mt-0.5 ${
+                      isCritical ? 'bg-rose-100 text-rose-600' : isHigh ? 'bg-amber-100 text-amber-600' : 'bg-indigo-100 text-indigo-600'
+                    }`}>
+                      <Icon className="w-4 h-4" />
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <h4 className="font-semibold text-navy-900">{alert.title}</h4>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <span className="font-semibold text-xs text-slate-900 truncate">{alert.title}</span>
                         {getSeverityBadge(alert.severity)}
                         {getStatusBadge(alert.status)}
+                        <span className="text-[11px] text-slate-400 ml-auto md:ml-0">{alert.timestamp}</span>
                       </div>
-                      <p className="text-sm text-gray-600">{alert.description}</p>
+                      <p className="text-xs text-slate-600 line-clamp-1">{alert.description}</p>
+                      
+                      {/* Compact Entity Chips */}
+                      <div className="flex flex-wrap items-center gap-2 mt-2 text-[11px]">
+                        <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-medium">
+                          Entity: <strong className="text-slate-900">{alert.entity}</strong>
+                        </span>
+                        {alert.supplier && (
+                          <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-medium">
+                            Supplier: <strong className="text-slate-900">{alert.supplier}</strong>
+                          </span>
+                        )}
+                        <span className="px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-100 font-medium">
+                          Impact: {alert.impact}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-xs text-gray-500">{alert.timestamp}</p>
-                    <p className="text-xs text-gray-400 mt-1">Triggered by {alert.triggeredBy}</p>
+
+                  {/* Actions Right */}
+                  <div className="flex items-center gap-2 shrink-0 self-end md:self-center border-t md:border-t-0 pt-2 md:pt-0 w-full md:w-auto justify-between md:justify-end">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-8 text-xs px-2.5 text-slate-600"
+                      onClick={() => toggleExpand(alert.id)}
+                    >
+                      {isExpanded ? <ChevronUp className="w-3.5 h-3.5 mr-1" /> : <ChevronDown className="w-3.5 h-3.5 mr-1" />}
+                      {isExpanded ? 'Less' : 'Details'}
+                    </Button>
+
+                    {alert.actionRequired && (
+                      <Button
+                        size="sm"
+                        disabled={sendingId === alert.id}
+                        onClick={() => handleTriggerAlert(alert)}
+                        className="h-8 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white px-3"
+                      >
+                        {sendingId === alert.id ? (
+                          <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Dispatching...</>
+                        ) : (
+                          <><Zap className="w-3.5 h-3.5 mr-1.5 text-amber-400" />Take Action</>
+                        )}
+                      </Button>
+                    )}
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-                  <div className="p-2 bg-gray-50 rounded">
-                    <p className="text-xs text-gray-500">Entity</p>
-                    <p className="text-sm font-medium text-navy-900">{alert.entity}</p>
-                  </div>
-                  {alert.supplier && (
-                    <div className="p-2 bg-gray-50 rounded">
-                      <p className="text-xs text-gray-500">Supplier</p>
-                      <p className="text-sm font-medium text-navy-900">{alert.supplier}</p>
-                    </div>
-                  )}
-                  <div className="p-2 bg-gray-50 rounded">
-                    <p className="text-xs text-gray-500">Impact</p>
-                    <p className="text-sm font-medium text-navy-900">{alert.impact}</p>
-                  </div>
-                  <div className="p-2 bg-gray-50 rounded">
-                    <p className="text-xs text-gray-500">Action Required</p>
-                    <p className={`text-sm font-medium ${alert.actionRequired ? 'text-danger-600' : 'text-success-600'}`}>
-                      {alert.actionRequired ? 'Yes' : 'No'}
-                    </p>
-                  </div>
-                </div>
-
-                {alert.suggestedAction && (
-                  <div className="p-3 bg-accent-50 border border-accent-200 rounded-lg mb-3">
-                    <div className="flex items-start gap-2">
-                      <Zap className="w-4 h-4 text-accent-600 mt-0.5" />
-                      <div>
-                        <p className="text-xs font-medium text-accent-900">Suggested Action</p>
-                        <p className="text-sm text-accent-800">{alert.suggestedAction}</p>
+                {/* Collapsible Deep Details */}
+                {isExpanded && (
+                  <div className="bg-slate-50/70 p-3.5 border-t border-slate-100 space-y-2.5 text-xs">
+                    {alert.suggestedAction && (
+                      <div className="p-2.5 bg-indigo-50/60 border border-indigo-200 rounded-lg flex items-start gap-2 text-indigo-900">
+                        <Zap className="w-4 h-4 text-indigo-600 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="font-semibold text-indigo-950">AI Prescriptive Recommendation</p>
+                          <p className="text-indigo-800 mt-0.5">{alert.suggestedAction}</p>
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
+                      <span>Source Engine: <strong>{alert.triggeredBy}</strong></span>
+                      <div className="flex items-center gap-2">
+                        <Button variant="ghost" size="sm" className="h-7 text-[11px] px-2 text-slate-500">
+                          <Clock className="w-3 h-3 mr-1" /> Snooze (2h)
+                        </Button>
+                        <Button variant="ghost" size="sm" className="h-7 text-[11px] px-2 text-slate-500">
+                          <CheckCircle className="w-3 h-3 mr-1" /> Acknowledge
+                        </Button>
                       </div>
                     </div>
                   </div>
                 )}
-
-                <div className="flex items-center justify-between pt-3 border-t">
-                  <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm">
-                      <Eye className="w-4 h-4 mr-1" />
-                      View Details
-                    </Button>
-                    {alert.actionRequired && (
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        disabled={sendingId === alert.id}
-                        onClick={() => handleTriggerAlert(alert)}
-                      >
-                        {sendingId === alert.id
-                          ? <><Loader2 className="w-4 h-4 mr-1 animate-spin" />Sending...</>
-                          : 'Take Action'
-                        }
-                      </Button>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {alert.status === 'active' && (
-                      <>
-                        <Button variant="ghost" size="sm">
-                          <Clock className="w-4 h-4 mr-1" />
-                          Snooze
-                        </Button>
-                        <Button variant="ghost" size="sm">
-                          <CheckCircle className="w-4 h-4 mr-1" />
-                          Acknowledge
-                        </Button>
-                      </>
-                    )}
-                    {alert.status === 'active' && (
-                      <Button variant="ghost" size="sm">
-                        <XCircle className="w-4 h-4 mr-1" />
-                        Resolve
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )
-        })}
+              </div>
+            )
+          })
+        )}
       </div>
     </div>
   )

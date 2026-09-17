@@ -11,13 +11,13 @@ const ProcurementDashboard = () => {
   const navigate = useNavigate()
   const { requirements, rfqs, quotations, negotiations, approvals } = useWorkflow()
 
-  const newRequirements = requirements.filter(r => r.status === 'new')
-  const activeRFQs = rfqs.filter(r => ['open', 'quotations_received', 'supplier_selected', 'draft', 'rfq_sent', 'rfq_viewed'].includes(r.status?.toLowerCase()))
-  const quotationsReceived = quotations.filter(q => q.status === 'submitted')
-  const activeNegotiations = negotiations.filter(n => ['open', 'awaiting_supplier', 'counter_offer_received', 'negotiation_active', 'authorized_pending_send'].includes(n.status?.toLowerCase()))
-  const agreedDeals = negotiations.filter(n => n.dealStatus === 'agreed' || n.status?.toLowerCase() === 'deal_agreed')
-  const pendingApprovals = approvals.filter(a => a.status === 'pending_finance_approval' || a.status === 'pending')
-  const approvedOrders = approvals.filter(a => a.status === 'approved')
+  const newRequirements = requirements.filter(r => (r.status || 'new').toLowerCase() === 'new')
+  const activeRFQs = rfqs.filter(r => ['open', 'quotations_received', 'supplier_selected', 'draft', 'rfq_sent', 'rfq_viewed', 'sent', 'received', 'in_progress', 'active'].includes((r.status || 'sent').toLowerCase()) && r.status !== 'closed' && r.status !== 'cancelled')
+  const quotationsReceived = quotations.filter(q => ['submitted', 'revised', 'received', 'under_review', 'negotiation_sent'].includes((q.status || 'submitted').toLowerCase()))
+  const activeNegotiations = negotiations.filter(n => ['open', 'awaiting_supplier', 'counter_offer_received', 'negotiation_active', 'authorized_pending_send', 'under_negotiation'].includes((n.status || 'open').toLowerCase()) || n.dealStatus === 'under_negotiation')
+  const agreedDeals = negotiations.filter(n => n.dealStatus === 'agreed' || (n.status || '').toLowerCase() === 'deal_agreed' || (n.status || '').toLowerCase() === 'agreed')
+  const pendingApprovals = approvals.filter(a => ['pending_finance_approval', 'pending', 'under_review'].includes((a.status || 'pending').toLowerCase()))
+  const approvedOrders = approvals.filter(a => (a.status || '').toLowerCase() === 'approved')
 
   const stats = [
     {

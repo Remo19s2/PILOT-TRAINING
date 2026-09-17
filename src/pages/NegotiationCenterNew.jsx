@@ -34,13 +34,14 @@ import {
   Brain,
   Lightbulb,
   Check,
-  ChevronRight
+  ChevronRight,
+  Loader2
 } from 'lucide-react'
 
 const NegotiationCenterNew = () => {
   const navigate = useNavigate()
   const { negotiationId } = useParams()
-  const { negotiations, rfqs, quotations, suppliers } = useWorkflow()
+  const { negotiations, setNegotiations, updateNegotiation, rfqs, quotations, suppliers } = useWorkflow()
   
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
@@ -50,6 +51,7 @@ const NegotiationCenterNew = () => {
   const [isSendingMessage, setIsSendingMessage] = useState(false)
   const [notification, setNotification] = useState(null)
   const [isNegotiating, setIsNegotiating] = useState(false)
+  const [isApplyingAI, setIsApplyingAI] = useState(false)
   const [offerData, setOfferData] = useState({
     proposedPrice: '',
     quantity: '',
@@ -292,16 +294,59 @@ const NegotiationCenterNew = () => {
     }))
   }
 
-  const applyAISuggestion = () => {
+  const applyAISuggestion = async () => {
     if (!selectedNegotiation) return
+    setIsApplyingAI(true)
+
+    const proposedPrice = (selectedNegotiation.aiSuggestedPrice || Math.round((selectedNegotiation.originalPrice || 100) * 0.94)).toString()
+    const delivery = (selectedNegotiation.deliveryRequirement || 14).toString()
+    const terms = selectedNegotiation.paymentTerms || 'Net 30'
+    const rationale = `Based on volume assurance (${selectedNegotiation.quantity || 1000} units) and standard ${terms} terms, we propose an optimized rate of ₹${proposedPrice}/unit.`
+
+    // 1. Populate the counter-offer form immediately
     setShowOfferForm(true)
     setOfferData({
-      proposedPrice: selectedNegotiation.aiSuggestedPrice.toString(),
-      quantity: selectedNegotiation.quantity.toString(),
-      delivery: selectedNegotiation.deliveryRequirement.toString(),
-      terms: selectedNegotiation.paymentTerms,
-      message: `Based on volume assurance and standard ${selectedNegotiation.paymentTerms} terms, we propose an optimized rate of ₹${selectedNegotiation.aiSuggestedPrice}/unit.`
+      proposedPrice: proposedPrice,
+      quantity: (selectedNegotiation.quantity || 1000).toString(),
+      delivery: delivery,
+      terms: terms,
+      message: rationale
     })
+
+    // 2. Trigger the workflow to deliver negotiation details to the webhook
+    try {
+      await triggerNegotiationRequest({
+        rfq_id:               selectedNegotiation.rfqId || selectedNegotiation.rfq_id || null,
+        quotation_id:         selectedNegotiation.quotationId || selectedNegotiation.quotation_id || null,
+        supplier_id:          selectedNegotiation.supplierId || selectedNegotiation.supplier_id || null,
+        component_id:         selectedNegotiation.component_id || selectedNegotiation.componentId || null,
+        quoted_price:         selectedNegotiation.originalPrice || selectedNegotiation.currentOffer || selectedNegotiation.revisedPrice || null,
+        quoted_quantity:      selectedNegotiation.quantity || 1000,
+        quoted_delivery_date: selectedNegotiation.targetDelivery || `${delivery} days`,
+        negotiation_reason:   selectedNegotiation.aiStrategy || `AI Proposal applied: target counter price ₹${proposedPrice}/unit with ${delivery} days lead time`,
+        priority:             selectedNegotiation.priority === 'urgent' || selectedNegotiation.priority === 'critical' ? 'CRITICAL' : 'HIGH',
+        proposed_counter_price: Number(proposedPrice),
+        target_delivery_days: Number(delivery),
+        payment_terms:        terms,
+        ai_confidence:        selectedNegotiation.aiConfidence || 94,
+        ai_strategy:          selectedNegotiation.aiStrategy
+      })
+
+      setNotification({
+        type: 'success',
+        message: `✅ AI Negotiation workflow triggered for ${selectedNegotiation.supplierName}! Details delivered to webhook.`
+      })
+      setTimeout(() => setNotification(null), 5000)
+    } catch (err) {
+      console.warn('AI negotiation workflow trigger:', err)
+      setNotification({
+        type: 'info',
+        message: `AI Proposal applied to form (Workflow status: ${err.message || 'Queued'})`
+      })
+      setTimeout(() => setNotification(null), 5000)
+    } finally {
+      setIsApplyingAI(false)
+    }
   }
 
   const handleSendOffer = async () => {
@@ -334,14 +379,21 @@ const NegotiationCenterNew = () => {
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ', Today'
       }
 
-      setSelectedNegotiation(current => ({
-        ...current,
+      const updatedOffer = {
+        ...selectedNegotiation,
         status: 'awaiting_supplier',
         currentOffer: newPrice,
-        deliveryRequirement: offerData.delivery ? Number(offerData.delivery) : current.deliveryRequirement,
-        paymentTerms: offerData.terms || current.paymentTerms,
-        negotiationHistory: [...(current.negotiationHistory || []), newHistoryItem]
-      }))
+        deliveryRequirement: offerData.delivery ? Number(offerData.delivery) : selectedNegotiation.deliveryRequirement,
+        paymentTerms: offerData.terms || selectedNegotiation.paymentTerms,
+        negotiationHistory: [...(selectedNegotiation.negotiationHistory || []), newHistoryItem]
+      }
+
+      setSelectedNegotiation(updatedOffer)
+      if (updateNegotiation) {
+        updateNegotiation(selectedNegotiation.id, updatedOffer)
+      } else if (setNegotiations) {
+        setNegotiations(prev => prev.map(n => n.id === selectedNegotiation.id ? updatedOffer : n))
+      }
 
       setShowOfferForm(false)
       setOfferData({ proposedPrice: '', quantity: '', delivery: '', terms: '', message: '' })
@@ -387,6 +439,11 @@ const NegotiationCenterNew = () => {
     }
 
     setSelectedNegotiation(updatedNegotiation)
+    if (updateNegotiation) {
+      updateNegotiation(selectedNegotiation.id, updatedNegotiation)
+    } else if (setNegotiations) {
+      setNegotiations(prev => prev.map(n => n.id === selectedNegotiation.id ? updatedNegotiation : n))
+    }
     setShowConfirmDialog(false)
     setNotification({
       type: 'success',
@@ -704,10 +761,20 @@ const NegotiationCenterNew = () => {
                       <Button
                         size="sm"
                         onClick={applyAISuggestion}
-                        className="bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs shrink-0 flex items-center gap-1.5 shadow-sm"
+                        disabled={isApplyingAI}
+                        className="bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs shrink-0 flex items-center gap-1.5 shadow-sm disabled:opacity-75"
                       >
-                        <Sparkles className="w-3.5 h-3.5" />
-                        Apply AI Proposal
+                        {isApplyingAI ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            Triggering AI Workflow...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="w-3.5 h-3.5" />
+                            Apply AI Proposal
+                          </>
+                        )}
                       </Button>
                     )}
                   </div>

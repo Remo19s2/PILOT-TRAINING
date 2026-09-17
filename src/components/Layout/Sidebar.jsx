@@ -8,36 +8,38 @@ import {
   AlertTriangle, 
   CheckSquare, 
   Settings, 
-  Bell,
-  Shield,
-  TrendingUp,
-  Truck,
-  Package,
-  BarChart3,
-  FileCheck,
-  Brain,
-  GitBranch,
-  Search,
-  HelpCircle,
-  ChevronDown,
-  ChevronRight,
-  Menu,
-  X,
-  ClipboardList,
-  Target,
-  Activity,
-  Zap,
-  Network,
-  DollarSign,
-  Building,
-  LogOut,
-  Eye,
-  Send,
-  CheckCircle,
-  Star,
-  Radar,
-  RefreshCw,
-  MessageSquare
+  Bell, 
+  Shield, 
+  TrendingUp, 
+  Truck, 
+  Package, 
+  BarChart3, 
+  FileCheck, 
+  Brain, 
+  GitBranch, 
+  Search, 
+  HelpCircle, 
+  ChevronDown, 
+  ChevronRight, 
+  Menu, 
+  X, 
+  ClipboardList, 
+  Target, 
+  Activity, 
+  Zap, 
+  Network, 
+  DollarSign, 
+  Building, 
+  LogOut, 
+  Eye, 
+  Send, 
+  CheckCircle, 
+  Star, 
+  Radar, 
+  RefreshCw, 
+  MessageSquare,
+  Sparkles,
+  Home
 } from 'lucide-react'
 import { cn } from '../../lib/utils'
 
@@ -55,27 +57,29 @@ const procurementManagerNavigation = [
       { name: 'Planning & Inventory', href: '/planning-insights', icon: Package },
       { name: 'Create RFQ', href: '/create-rfq', icon: FileText },
       { name: 'RFQs & Quotations', href: '/rfqs', icon: FileCheck },
-      { name: 'Negotiation', href: '/negotiation-center', icon: MessageSquare },
+      { name: 'Negotiation Center', href: '/negotiation-center', icon: MessageSquare },
     ]
   },
   {
     title: 'Decisions',
     items: [
-      { name: 'Recommendations', href: '/risk-recommendations', icon: Brain },
+      { name: 'Recommendations', href: '/recommendations', icon: Brain },
       { name: 'Finance Approvals', href: '/approval-status', icon: CheckSquare },
-      { name: 'Orders', href: '/purchase-orders', icon: Truck },
+      { name: 'Purchase Orders', href: '/purchase-orders', icon: Truck },
     ]
   },
   {
-    title: 'Monitoring',
+    title: 'Monitoring & Intelligence',
     items: [
       { name: 'Monitoring & Alerts', href: '/monitoring-alerts', icon: Bell },
+      { name: 'Supplier Risk Analysis', href: '/risk-analysis', icon: Shield },
+      { name: 'Suppliers Directory', href: '/suppliers', icon: Users },
     ]
   },
   {
     title: 'Reports',
     items: [
-      { name: 'Reports', href: '/reports', icon: BarChart3 },
+      { name: 'Procurement Reports', href: '/reports', icon: BarChart3 },
     ]
   },
 ]
@@ -88,7 +92,7 @@ const supplierNavigation = [
     ]
   },
   {
-    title: 'RFQs',
+    title: 'RFQs & Deals',
     items: [
       { name: 'Received RFQs', href: '/new-rfqs', icon: FileText },
       { name: 'My Quotations', href: '/submitted-quotations', icon: FileCheck },
@@ -126,9 +130,10 @@ const financeApproverNavigation = [
     ]
   },
   {
-    title: 'History',
+    title: 'History & Analytics',
     items: [
       { name: 'Approval History', href: '/approval-history', icon: Activity },
+      { name: 'Finance Reports', href: '/finance-reports', icon: BarChart3 },
     ]
   },
 ]
@@ -139,30 +144,40 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     Overview: true,
     Procurement: true,
     Decisions: true,
-    Monitoring: true,
+    'Monitoring & Intelligence': true,
+    'RFQs & Deals': true,
     Reports: true,
     RFQs: true,
     Alerts: true,
     Approvals: true,
     'Procurement Details': true,
-    History: true,
+    'History & Analytics': true,
   })
   const location = useLocation()
   const { currentUser, logout } = useWorkflow()
 
   // Get navigation based on user role
   const getNavigation = () => {
-    if (!currentUser) return []
-    switch (currentUser.role) {
-      case 'procurement_manager':
-        return procurementManagerNavigation
-      case 'supplier':
-        return supplierNavigation
-      case 'finance_approver':
-        return financeApproverNavigation
-      default:
-        return []
+    const role = (currentUser?.role || '').toLowerCase()
+    if (role === 'supplier' || role.includes('supplier')) {
+      return supplierNavigation
     }
+    if (role === 'finance_approver' || role.includes('finance')) {
+      return financeApproverNavigation
+    }
+    if (role === 'procurement_manager' || role.includes('procurement') || role.includes('manager')) {
+      return procurementManagerNavigation
+    }
+
+    // Smart fallback based on current URL path
+    const path = location.pathname.toLowerCase()
+    if (path.includes('supplier') && !path.includes('supplier-comparison') && !path.includes('supplier-risk')) {
+      return supplierNavigation
+    }
+    if (path.includes('finance') || path.includes('pending-approvals') || path.includes('approved-requests') || path.includes('rejected-requests')) {
+      return financeApproverNavigation
+    }
+    return procurementManagerNavigation
   }
 
   const navigationGroups = getNavigation()
@@ -181,13 +196,13 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
         to={item.href}
         onClick={() => setIsOpen(false)}
         className={cn(
-          'flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-colors',
+          'flex items-center gap-3 px-3 py-2 text-xs font-semibold rounded-lg transition-all',
           isActive 
-            ? 'bg-primary-100 text-primary-700 font-medium' 
-            : 'text-gray-700 hover:bg-gray-100'
+            ? 'bg-primary-600 text-white shadow-md shadow-primary-600/30' 
+            : 'text-slate-300 hover:bg-navy-800/80 hover:text-white'
         )}
       >
-        <item.icon className="w-4 h-4" />
+        <item.icon className={cn('w-4 h-4', isActive ? 'text-white' : 'text-slate-400')} />
         <span>{item.name}</span>
       </Link>
     )
@@ -203,47 +218,64 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
       {/* Mobile overlay */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
           onClick={() => setIsOpen(false)}
         />
       )}
       
       {/* Sidebar */}
       <aside className={cn(
-        'fixed top-0 left-0 z-50 h-full bg-navy-900 text-white transition-transform duration-300',
+        'fixed top-0 left-0 z-50 h-full bg-navy-950 text-white transition-transform duration-300 border-r border-navy-800/80',
         'w-64 overflow-y-auto scrollbar-thin',
         isOpen ? 'translate-x-0' : '-translate-x-full'
       )}>
-        <div className="p-4 border-b border-navy-800">
-          <div className="flex items-center h-16 relative">
+        {/* Logo and Brand */}
+        <div className="p-4 border-b border-navy-800/80">
+          <div className="flex items-center justify-between h-14">
+            <Link to="/" className="flex items-center gap-2.5 group">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-primary-600 to-primary-700 flex items-center justify-center text-white shadow-md shadow-primary-600/30 group-hover:scale-105 transition-transform">
+                <Sparkles className="w-4 h-4 text-primary-200" />
+              </div>
+              <div>
+                <h1 className="text-base font-black tracking-tight text-white flex items-center gap-1">
+                  PRISM
+                  <span className="text-[9px] uppercase tracking-widest font-bold px-1.5 py-0.2 rounded bg-primary-950 text-primary-400 border border-primary-800">
+                    AI
+                  </span>
+                </h1>
+                <p className="text-[10px] text-slate-400">Autonomous Procurement</p>
+              </div>
+            </Link>
+
             <button
-              onClick={() => setIsOpen(prev => !prev)}
-              className="text-gray-400 hover:text-white transition-colors absolute left-0"
-              title={isOpen ? "Close sidebar" : "Open sidebar"}
+              onClick={() => setIsOpen(false)}
+              className="p-1.5 text-slate-400 hover:text-white hover:bg-navy-800 rounded-lg transition-colors"
+              title="Close sidebar"
             >
-              {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              <X className="w-4 h-4" />
             </button>
-            <h1 className="text-xl font-bold text-white absolute left-1/2 transform -translate-x-1/2">PRISM</h1>
           </div>
         </div>
 
-        <nav className="p-4 space-y-6">
+
+
+        <nav className="p-4 space-y-5">
           {navigationGroups.map((group) => (
             <div key={group.title}>
               <button
                 onClick={() => toggleGroup(group.title)}
-                className="flex items-center justify-between w-full px-3 py-2 text-xs font-semibold text-gray-400 uppercase tracking-wider hover:text-white transition-colors"
+                className="flex items-center justify-between w-full px-3 py-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider hover:text-white transition-colors"
               >
                 <span>{group.title}</span>
                 {expandedGroups[group.title] ? (
-                  <ChevronDown className="w-4 h-4" />
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
                 ) : (
-                  <ChevronRight className="w-4 h-4" />
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
                 )}
               </button>
               
               {expandedGroups[group.title] && (
-                <div className="mt-2 space-y-1">
+                <div className="mt-1 space-y-0.5">
                   {group.items.map((item) => (
                     <NavLink key={item.name} item={item} />
                   ))}
@@ -253,13 +285,13 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
           ))}
           
           {currentUser && (
-            <div className="pt-6 border-t border-navy-800">
+            <div className="pt-4 border-t border-navy-800/80">
               <button
                 onClick={handleLogout}
-                className="flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-colors text-gray-400 hover:text-white hover:bg-gray-800 w-full"
+                className="flex items-center gap-3 px-3 py-2 text-xs font-semibold rounded-lg transition-colors text-rose-400 hover:text-rose-300 hover:bg-rose-950/30 w-full"
               >
                 <LogOut className="w-4 h-4" />
-                <span>Logout</span>
+                <span>Sign Out</span>
               </button>
             </div>
           )}
@@ -270,3 +302,4 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
 }
 
 export default Sidebar
+

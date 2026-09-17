@@ -9,15 +9,25 @@ const SupplierDashboard = () => {
   const { rfqs, quotations, negotiations, currentUser } = useWorkflow()
 
   // Filter RFQs sent to this supplier (backend already scopes rfqs to logged-in supplier)
-  const supplierId = currentUser?.supplier_id || currentUser?.id
-  const myRFQs = rfqs.filter(rfq => !rfq.sentTo || rfq.sentTo.includes(supplierId) || rfq.sentTo.includes(currentUser?.id) || rfq.sentTo.includes('SUP-001'))
-  const newRFQs = myRFQs.filter(rfq => !rfq.viewedBy?.includes(supplierId) && rfq.status !== 'closed')
-  const viewedRFQs = myRFQs.filter(rfq => rfq.viewedBy?.includes(supplierId))
-  const myQuotations = quotations.filter(q => !q.supplierId || q.supplierId === supplierId || q.supplierId === currentUser?.id || q.supplierId === currentUser?.supplier_id || q.supplierId === 'SUP-001')
-  const pendingQuotations = myQuotations.filter(q => q.status?.toLowerCase() === 'submitted')
-  const myNegotiations = negotiations.filter(n => !n.supplierId || n.supplierId === supplierId || n.supplierId === currentUser?.id || n.supplierId === currentUser?.supplier_id || n.supplierId === 'SUP-001')
-  const activeNegotiations = myNegotiations.filter(n => ['open', 'negotiation_active', 'counter_offer_received', 'awaiting_supplier'].includes(n.status?.toLowerCase()))
-  const agreedDeals = myNegotiations.filter(n => n.dealStatus === 'agreed' || n.status?.toLowerCase() === 'deal_agreed')
+  const supplierId = currentUser?.supplier_id || currentUser?.id || 'SUP-001'
+  const myRFQs = rfqs.filter(rfq => {
+    const sent = rfq.sentTo || rfq.selectedSuppliers || rfq.supplierIds || [rfq.supplierId].filter(Boolean)
+    if (!sent || sent.length === 0) return true
+    return sent.includes(supplierId) || sent.includes(currentUser?.id) || sent.includes('SUP-001')
+  })
+  const newRFQs = myRFQs.filter(rfq => !(rfq.viewedBy || []).includes(supplierId) && rfq.status !== 'closed')
+  const viewedRFQs = myRFQs.filter(rfq => (rfq.viewedBy || []).includes(supplierId))
+  const myQuotations = quotations.filter(q => {
+    if (!q.supplierId) return true
+    return q.supplierId === supplierId || q.supplierId === currentUser?.id || q.supplierId === 'SUP-001'
+  })
+  const pendingQuotations = myQuotations.filter(q => ['submitted', 'revised', 'under_review'].includes((q.status || '').toLowerCase()))
+  const myNegotiations = negotiations.filter(n => {
+    if (!n.supplierId) return true
+    return n.supplierId === supplierId || n.supplierId === currentUser?.id || n.supplierId === 'SUP-001'
+  })
+  const activeNegotiations = myNegotiations.filter(n => ['open', 'negotiation_active', 'counter_offer_received', 'awaiting_supplier', 'under_negotiation'].includes((n.status || '').toLowerCase()) || n.dealStatus === 'under_negotiation')
+  const agreedDeals = myNegotiations.filter(n => n.dealStatus === 'agreed' || (n.status || '').toLowerCase() === 'deal_agreed' || (n.status || '').toLowerCase() === 'agreed')
 
   const stats = [
     {

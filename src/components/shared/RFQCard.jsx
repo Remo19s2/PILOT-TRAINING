@@ -1,7 +1,7 @@
-import { Card, CardHeader, CardContent, CardTitle, CardDescription } from '../ui/Card'
+import { Card, CardContent } from '../ui/Card'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
-import { Eye, Calendar, Package, DollarSign, Clock, AlertCircle, Send, Users } from 'lucide-react'
+import { Eye, Calendar, Package, DollarSign, Clock, AlertCircle, Send, Users, ArrowRight } from 'lucide-react'
 import StatusBadge from './StatusBadge'
 
 const RFQCard = ({ rfq, onView, onSelect, onSend, isSending = false }) => {
@@ -26,121 +26,99 @@ const RFQCard = ({ rfq, onView, onSelect, onSend, isSending = false }) => {
     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
     
     if (days > 0) {
-      return { text: `${days}d ${hours}h remaining`, status: days <= 1 ? 'warning' : 'success' }
+      return { text: `${days}d ${hours}h left`, status: days <= 1 ? 'warning' : 'success' }
     }
     
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
     if (hours > 0) {
-      return { text: `${hours}h ${minutes}m remaining`, status: hours <= 2 ? 'danger' : 'warning' }
+      return { text: `${hours}h ${minutes}m left`, status: hours <= 2 ? 'danger' : 'warning' }
     }
     
-    return { text: `${minutes}m remaining`, status: 'danger' }
+    return { text: `${minutes}m left`, status: 'danger' }
   }
 
-  const getDeadlineStatus = (deadline) => {
-    if (!deadline) return { label: 'No Deadline', variant: 'default' }
-    
-    const deadlineDate = new Date(deadline)
-    const now = new Date()
-    const diff = deadlineDate - now
-    
-    if (diff <= 0) {
-      return { label: 'Closed', variant: 'danger' }
-    }
-    
-    const hours = diff / (1000 * 60 * 60)
-    if (hours <= 24) {
-      return { label: 'Closing Soon', variant: 'warning' }
-    }
-    
-    return { label: 'Open', variant: 'success' }
-  }
-
-  const timeRemaining = getTimeRemaining(rfq.quotationDeadline)
-  const deadlineStatus = getDeadlineStatus(rfq.quotationDeadline)
+  const timeRemaining = getTimeRemaining(rfq.quotationDeadline || rfq.quotation_deadline)
   
   return (
-    <Card className="hover:shadow-lg transition-shadow">
-      <CardHeader>
-        <div className="flex items-start justify-between">
-          <div>
-            <CardTitle className="text-lg">{rfq.id || 'N/A'}</CardTitle>
-            <CardDescription>{rfq.component || rfq.requirementName || 'N/A'}</CardDescription>
+    <Card
+      className="border border-gray-200 hover:border-blue-400 transition-all hover:shadow-md bg-white cursor-pointer"
+      onClick={() => onView && onView(rfq)}
+    >
+      <CardContent className="p-4 space-y-3">
+        {/* Header Strip */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <span className="text-[10px] font-mono text-gray-400 block">{rfq.id || 'N/A'}</span>
+            <h3 className="font-bold text-sm text-navy-900 truncate">
+              {rfq.component || rfq.requirementName || 'Automotive Component'}
+            </h3>
           </div>
           <StatusBadge status={rfq.status} />
         </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <Package className="w-4 h-4" />
-          <span>Quantity: {rfq.quantity || rfq.requiredQuantity || 'N/A'}</span>
-        </div>
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <Calendar className="w-4 h-4" />
-          <span>Delivery: {rfq.deliveryDeadline || rfq.requiredDeliveryDate || 'N/A'}</span>
-        </div>
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <DollarSign className="w-4 h-4" />
-          <span>Budget: ₹{rfq.expectedBudget?.toLocaleString() || 'N/A'}</span>
-        </div>
-        {supplierCount > 0 && (
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <Users className="w-4 h-4" />
-            <span>{supplierCount} Supplier{supplierCount !== 1 ? 's' : ''} Invited</span>
-          </div>
-        )}
-        
-        {/* Quotation Deadline Section */}
-        {rfq.quotationDeadline && (
-          <div className="border-t pt-3 mt-3">
-            <div className="flex items-center gap-2 text-sm text-gray-700 mb-2">
-              <Clock className="w-4 h-4 text-primary-600" />
-              <span className="font-medium">Quotation Deadline</span>
-            </div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-gray-600">{rfq.quotationDeadline}</span>
-              <Badge variant={deadlineStatus.variant} className="text-xs">
-                {deadlineStatus.label}
-              </Badge>
-            </div>
-            <div className="flex items-center gap-2 text-sm">
-              <Clock className="w-3 h-3" />
-              <span className={`font-medium ${
-                timeRemaining.status === 'danger' ? 'text-red-600' :
-                timeRemaining.status === 'warning' ? 'text-yellow-600' :
-                'text-green-600'
-              }`}>
-                {timeRemaining.text}
-              </span>
-            </div>
-          </div>
-        )}
 
-        <div className="flex flex-wrap gap-2 pt-2 items-center">
-          <Button variant="secondary" size="sm" onClick={() => onView(rfq)}>
-            <Eye className="w-4 h-4 mr-2" />
-            View
-          </Button>
-          {onSend && isDraft && (
+        {/* 3 Metric Pills */}
+        <div className="grid grid-cols-3 gap-1.5 p-2 bg-gray-50/90 rounded-lg border border-gray-100 text-center">
+          <div>
+            <span className="text-[10px] text-gray-400 block font-medium">Quantity</span>
+            <span className="text-xs font-bold text-navy-900">
+              {Number(rfq.quantity || rfq.requiredQuantity || 1000).toLocaleString()}
+            </span>
+          </div>
+          <div>
+            <span className="text-[10px] text-gray-400 block font-medium">Budget</span>
+            <span className="text-xs font-bold text-emerald-700">
+              ₹{rfq.expectedBudget ? Number(rfq.expectedBudget).toLocaleString() : 'N/A'}
+            </span>
+          </div>
+          <div>
+            <span className="text-[10px] text-gray-400 block font-medium">Suppliers</span>
+            <span className="text-xs font-bold text-blue-700">
+              {supplierCount > 0 ? `${supplierCount} invited` : 'Pending'}
+            </span>
+          </div>
+        </div>
+
+        {/* Deadline Indicator */}
+        <div className="flex items-center justify-between text-xs pt-1 border-t border-gray-100">
+          <div className="flex items-center gap-1.5 text-gray-500">
+            <Clock className="w-3.5 h-3.5 text-gray-400" />
+            <span className={`text-[11px] font-semibold ${
+              timeRemaining.status === 'danger' ? 'text-red-600' :
+              timeRemaining.status === 'warning' ? 'text-amber-600' :
+              'text-emerald-700'
+            }`}>
+              {timeRemaining.text}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            {onSend && isDraft && (
+              <Button
+                variant="primary"
+                size="sm"
+                disabled={isSending}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onSend(rfq)
+                }}
+                className="bg-blue-600 hover:bg-blue-700 text-white text-xs h-7 px-2.5 font-semibold"
+              >
+                <Send className="w-3 h-3 mr-1" />
+                {isSending ? 'Sending...' : 'Dispatch'}
+              </Button>
+            )}
             <Button
-              variant="primary"
+              variant="ghost"
               size="sm"
-              disabled={isSending}
               onClick={(e) => {
                 e.stopPropagation()
-                onSend(rfq)
+                onView(rfq)
               }}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
+              className="text-gray-600 hover:text-navy-900 text-xs h-7 px-2"
             >
-              <Send className="w-4 h-4 mr-1.5" />
-              {isSending ? 'Sending...' : 'Send to Suppliers'}
+              View &rarr;
             </Button>
-          )}
-          {onSelect && rfq.status === 'quotation_submitted' && (
-            <Button variant="primary" size="sm" onClick={() => onSelect(rfq)}>
-              Select Supplier
-            </Button>
-          )}
+          </div>
         </div>
       </CardContent>
     </Card>

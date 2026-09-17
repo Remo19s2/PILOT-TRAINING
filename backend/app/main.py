@@ -161,11 +161,11 @@ async def sns_webhook(request: Request, db: DbSession) -> WorkflowExecutionOut:
         raise HTTPException(status_code=400, detail="Malformed webhook JSON") from error
     webhook = SnsWebhookIn.model_validate(payload)
     if webhook.sns_execution_id:
-        execution = db.scalar(select(WorkflowExecution).where(WorkflowExecution.sns_execution_id == webhook.sns_execution_id).with_for_update())
+        execution = db.scalar(select(WorkflowExecution).where(WorkflowExecution.sns_execution_id == webhook.sns_execution_id))
     elif webhook.prism_execution_id:
         execution = db.get(WorkflowExecution, webhook.prism_execution_id)
     elif webhook.execution_id:
-        sns_execution = db.scalar(select(WorkflowExecution).where(WorkflowExecution.sns_execution_id == str(webhook.execution_id)).with_for_update())
+        sns_execution = db.scalar(select(WorkflowExecution).where(WorkflowExecution.sns_execution_id == str(webhook.execution_id)))
         prism_execution = None
         try:
             prism_execution = db.get(WorkflowExecution, UUID(str(webhook.execution_id)))

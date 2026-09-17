@@ -1,4 +1,4 @@
-﻿from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from uuid import UUID
 
@@ -25,7 +25,7 @@ from app.models import (
 	WorkflowExecution,
 )
 from app.seed import seed_production_accounts
-from app.db import SessionLocal
+from app.db import Base, engine, SessionLocal
 
 
 IDS = {
@@ -69,6 +69,7 @@ def ensure(db, model, record_id, **values):
 
 
 def seed_mock_data() -> None:
+	Base.metadata.create_all(bind=engine)
 	db = SessionLocal()
 	now = datetime.now(timezone.utc)
 	try:

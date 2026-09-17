@@ -8,7 +8,7 @@ import { Select } from '../components/ui/Select'
 import { Badge } from '../components/ui/Badge'
 import RFQCard from '../components/shared/RFQCard'
 import StatusBadge from '../components/shared/StatusBadge'
-import { Search, Plus, FileText, Clock, AlertTriangle, Eye, MessageSquare, CheckCircle, ArrowRight, Send, Users } from 'lucide-react'
+import { Search, Plus, FileText, Clock, AlertTriangle, Eye, MessageSquare, CheckCircle, ArrowRight, Send, Users, ArrowLeft, Building2 } from 'lucide-react'
 import { triggerRfqDeadlineReached } from '../api/events'
 import { useSupplierMonitoring } from '../lib/useSupplierMonitoring'
 
@@ -53,7 +53,6 @@ const RFQs = () => {
     return () => clearInterval(timer)
   }, [rfqs, quotations])
 
-
   const filteredRFQs = rfqs.filter(rfq => {
     const matchesSearch = rfq.component?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          rfq.id?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -62,7 +61,7 @@ const RFQs = () => {
     if (statusFilter === 'draft') {
       matchesStatus = ['draft', 'rfq_created'].includes(s)
     } else if (statusFilter === 'open') {
-      matchesStatus = ['open', 'rfq_sent'].includes(s)
+      matchesStatus = ['open', 'rfq_sent', 'sent', 'received', 'rfq_viewed', 'quotations_received'].includes(s)
     } else if (statusFilter !== 'all') {
       matchesStatus = s === statusFilter.toLowerCase()
     }
@@ -76,12 +75,12 @@ const RFQs = () => {
       await sendRFQ(rfq.id, supplierIds)
       setNotification({
         type: 'success',
-        message: `RFQ ${rfq.id} was successfully sent to ${supplierIds.length > 0 ? supplierIds.length : 'assigned'} supplier(s)!`,
+        message: `RFQ ${rfq.id} dispatched to ${supplierIds.length > 0 ? supplierIds.length : 'assigned'} supplier(s)!`,
       })
       if (selectedRFQ && selectedRFQ.id === rfq.id) {
         setSelectedRFQ(prev => prev ? { ...prev, status: 'open' } : null)
       }
-      setTimeout(() => setNotification(null), 6000)
+      setTimeout(() => setNotification(null), 5000)
     } catch (err) {
       console.error('Failed to send RFQ:', err)
       setNotification({
@@ -111,7 +110,7 @@ const RFQs = () => {
 
   // Quotation Review View
   if (selectedRFQ) {
-    const rfqQuotations = quotations.filter(q => q.rfqId === selectedRFQ.id)
+    const rfqQuotations = quotations.filter(q => q.rfqId === selectedRFQ.id || q.rfq_id === selectedRFQ.id)
     const onTimeQuotations = rfqQuotations.filter(q => q.submissionStatus === 'on-time' || q.submissionStatus === 'on_time')
     const lateQuotations = rfqQuotations.filter(q => q.submissionStatus === 'late')
     const isDraft = ['draft', 'rfq_created'].includes(selectedRFQ.status?.toLowerCase())
@@ -120,331 +119,243 @@ const RFQs = () => {
     const assignedSuppliersList = suppliers.filter(s => assignedSupplierIds.includes(s.id))
 
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="secondary" onClick={handleBackToList}>
-              <ArrowRight className="w-4 h-4 mr-2 rotate-180" />
-              Back to RFQs
+      <div className="space-y-5 max-w-7xl mx-auto">
+        {/* Detail Top Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-gray-200 shadow-2xs">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" onClick={handleBackToList} className="h-8 px-2 text-gray-600 hover:text-navy-900">
+              <ArrowLeft className="w-4 h-4 mr-1" />
+              RFQ Index
             </Button>
+            <div className="h-5 w-px bg-gray-200 hidden sm:block" />
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-bold text-navy-900">
-                  {isDraft ? 'RFQ Draft & Dispatch' : 'Quotation Review'}
+                <h1 className="text-base font-bold text-navy-900">
+                  {selectedRFQ.component || 'Component RFQ'}
                 </h1>
+                <Badge variant="primary" className="text-[10px] font-mono">{selectedRFQ.id}</Badge>
                 <StatusBadge status={selectedRFQ.status} />
               </div>
-              <p className="text-gray-600 mt-1">{selectedRFQ.id} - {selectedRFQ.component}</p>
+              <p className="text-[11px] text-gray-500 mt-0.5">
+                Target: {Number(selectedRFQ.quantity || 1000).toLocaleString()} units &bull; Deadline: {selectedRFQ.quotationDeadline || 'N/A'}
+              </p>
             </div>
           </div>
-          {isDraft && (
-            <Button
-              onClick={() => handleSendRFQ(selectedRFQ)}
-              disabled={sendingRfqId === selectedRFQ.id}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2 flex items-center gap-2 shadow"
-            >
-              <Send className="w-4 h-4" />
-              {sendingRfqId === selectedRFQ.id ? 'Sending...' : 'Send to Suppliers'}
-            </Button>
-          )}
+
+          <div className="flex items-center gap-2">
+            {isDraft && (
+              <Button
+                size="sm"
+                onClick={() => handleSendRFQ(selectedRFQ)}
+                disabled={sendingRfqId === selectedRFQ.id}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs h-8 shadow-2xs"
+              >
+                <Send className="w-3.5 h-3.5 mr-1" />
+                {sendingRfqId === selectedRFQ.id ? 'Dispatching...' : 'Send RFQ to Suppliers'}
+              </Button>
+            )}
+            {rfqQuotations.length > 0 && (
+              <>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => handleProceedToNegotiation(selectedRFQ)}
+                  className="text-xs font-semibold h-8"
+                >
+                  <MessageSquare className="w-3.5 h-3.5 mr-1 text-blue-600" />
+                  Negotiation Center
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => handleProceedToComparison(selectedRFQ)}
+                  className="bg-navy-900 hover:bg-slate-800 text-white text-xs font-semibold h-8 shadow-2xs"
+                >
+                  <Eye className="w-3.5 h-3.5 mr-1" />
+                  Compare Quotes ({rfqQuotations.length})
+                </Button>
+              </>
+            )}
+          </div>
         </div>
 
         {notification && (
-          <div className={`p-4 rounded-lg flex items-center justify-between border ${
-            notification.type === 'error' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-green-50 border-green-200 text-green-800'
+          <div className={`p-3 rounded-lg flex items-center justify-between border text-xs font-semibold ${
+            notification.type === 'error' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-emerald-50 border-emerald-200 text-emerald-800'
           }`}>
-            <div className="flex items-center gap-2">
-              {notification.type === 'error' ? <AlertTriangle className="w-5 h-5" /> : <CheckCircle className="w-5 h-5" />}
-              <span className="font-medium text-sm">{notification.message}</span>
-            </div>
-            <button onClick={() => setNotification(null)} className="text-xs font-semibold underline ml-4">Dismiss</button>
+            <span>{notification.message}</span>
+            <button onClick={() => setNotification(null)} className="underline ml-4 text-[11px]">Dismiss</button>
           </div>
         )}
 
         {/* Draft Dispatch Panel */}
         {isDraft && (
-          <Card className="border-2 border-blue-400 bg-blue-50/70 shadow-sm">
-            <CardHeader>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <CardTitle className="text-xl flex items-center gap-2 text-blue-950">
-                    <Send className="w-5 h-5 text-blue-600" />
-                    Draft RFQ — Ready for Supplier Dispatch
-                  </CardTitle>
-                  <CardDescription className="text-blue-900 mt-1">
-                    This RFQ is currently saved as a draft. Click below to dispatch it to assigned suppliers and begin receiving quotations.
-                  </CardDescription>
-                </div>
-                <Button
-                  onClick={() => handleSendRFQ(selectedRFQ)}
-                  disabled={sendingRfqId === selectedRFQ.id}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 shadow hover:shadow-md transition-all flex items-center gap-2 shrink-0"
-                >
-                  <Send className="w-4 h-4" />
-                  {sendingRfqId === selectedRFQ.id ? 'Dispatching RFQ...' : 'Send RFQ to Suppliers Now'}
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="border-t border-blue-200 pt-3">
-                <h4 className="text-sm font-semibold text-gray-800 mb-2">
-                  Target Suppliers ({assignedSuppliersList.length > 0 ? assignedSuppliersList.length : assignedSupplierIds.length}):
-                </h4>
-                {assignedSuppliersList.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                    {assignedSuppliersList.map(sup => (
-                      <div key={sup.id} className="p-3 bg-white border border-blue-200 rounded-lg shadow-xs">
-                        <p className="font-semibold text-sm text-gray-900">{sup.name}</p>
-                        <p className="text-xs text-gray-500">{sup.code || sup.id}</p>
-                        {sup.contact_email && <p className="text-xs text-gray-400 mt-1">{sup.contact_email}</p>}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-gray-600">All registered suppliers will be eligible to quote on this RFQ once dispatched.</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Awaiting Quotations Banner */}
-        {isOpenAwaiting && (
-          <Card className="border border-emerald-300 bg-emerald-50/50">
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2 text-emerald-950">
-                <Clock className="w-5 h-5 text-emerald-600" />
-                RFQ Dispatched — Awaiting Supplier Quotations
-              </CardTitle>
-              <CardDescription className="text-emerald-900">
-                This RFQ has been sent to suppliers. Quotations submitted prior to the deadline ({selectedRFQ.quotationDeadline || 'N/A'}) will appear here automatically.
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        )}
-
-        {/* RFQ Summary */}
-        <Card>
-          <CardHeader>
-            <CardTitle>RFQ Summary</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="p-4 rounded-xl border border-blue-200 bg-blue-50/60 space-y-3">
+            <div className="flex items-center justify-between">
               <div>
-                <span className="text-sm text-gray-600">RFQ ID</span>
-                <p className="font-medium">{selectedRFQ.id}</p>
+                <h3 className="text-xs font-bold text-blue-950 uppercase tracking-wider flex items-center gap-1.5">
+                  <Send className="w-3.5 h-3.5 text-blue-600" />
+                  Ready for Dispatch
+                </h3>
+                <p className="text-xs text-blue-900 mt-0.5">
+                  Assigned suppliers will receive instant automated RFQ notifications upon release.
+                </p>
               </div>
-              <div>
-                <span className="text-sm text-gray-600">Component</span>
-                <p className="font-medium">{selectedRFQ.component}</p>
-              </div>
-              <div>
-                <span className="text-sm text-gray-600">Quantity</span>
-                <p className="font-medium">{selectedRFQ.quantity} Units</p>
-              </div>
-              <div>
-                <span className="text-sm text-gray-600">Deadline</span>
-                <p className="font-medium">{selectedRFQ.quotationDeadline}</p>
-              </div>
+              <Button
+                size="sm"
+                onClick={() => handleSendRFQ(selectedRFQ)}
+                disabled={sendingRfqId === selectedRFQ.id}
+                className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold h-8"
+              >
+                {sendingRfqId === selectedRFQ.id ? 'Dispatching...' : 'Dispatch Now'}
+              </Button>
             </div>
-          </CardContent>
-        </Card>
 
-        {/* On-Time Quotations */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CheckCircle className="w-5 h-5 text-green-600" />
-              On-Time Quotations ({onTimeQuotations.length})
-            </CardTitle>
-            <CardDescription>Quotations submitted before the deadline</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {onTimeQuotations.length > 0 ? (
-              <div className="space-y-4">
-                {onTimeQuotations.map((quotation) => {
-                  const supplier = suppliers.find(s => s.id === quotation.supplierId)
-                  return (
-                    <div
-                      key={quotation.id}
-                      className="p-4 border rounded-lg hover:shadow-md cursor-pointer transition-all"
-                      onClick={() => navigate(`/supplier-comparison/${selectedRFQ.id}`)}
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <div>
-                          <p className="font-semibold text-navy-900">{supplier?.name || quotation.supplierName}</p>
-                          <p className="text-sm text-gray-600">{quotation.supplierId}</p>
-                        </div>
-                        <Badge variant="success">On-Time</Badge>
-                      </div>
-                      <div className="grid grid-cols-3 gap-4 text-sm">
-                        <div>
-                          <span className="text-gray-600">Unit Price</span>
-                          <p className="font-medium">₹{quotation.unitPrice}/unit</p>
-                        </div>
-                        <div>
-                          <span className="text-gray-600">Total</span>
-                          <p className="font-medium">₹{quotation.totalPrice.toLocaleString()}</p>
-                        </div>
-                        <div>
-                          <span className="text-gray-600">Delivery</span>
-                          <p className="font-medium">{quotation.deliveryTime} Days</p>
-                        </div>
-                      </div>
-                      <div className="mt-3 pt-3 border-t flex items-center justify-between">
-                        <span className="text-xs text-gray-500">Submitted: {quotation.submittedAt}</span>
-                        <Button size="sm" variant="secondary">
-                          View Details
-                        </Button>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <Clock className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                <p className="text-gray-600">No on-time quotations received</p>
+            {assignedSuppliersList.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-2 border-t border-blue-200/60">
+                {assignedSuppliersList.map(sup => (
+                  <div key={sup.id} className="p-2.5 bg-white rounded-lg border border-blue-100 text-xs">
+                    <p className="font-bold text-navy-900">{sup.name}</p>
+                    <p className="text-[10px] text-gray-500">{sup.id} &bull; {sup.category}</p>
+                  </div>
+                ))}
               </div>
             )}
-          </CardContent>
-        </Card>
-
-        {/* Late Quotations */}
-        <Card className="border-2 border-warning-200 bg-warning-50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-warning-600" />
-              Late Submissions ({lateQuotations.length})
-            </CardTitle>
-            <CardDescription>Quotations submitted after the deadline</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {lateQuotations.length > 0 ? (
-              <div className="space-y-4">
-                {lateQuotations.map((quotation) => {
-                  const supplier = suppliers.find(s => s.id === quotation.supplierId)
-                  return (
-                    <div
-                      key={quotation.id}
-                      className="p-4 border border-warning-300 rounded-lg bg-white"
-                    >
-                      <div className="flex items-center justify-between mb-3">
-                        <div>
-                          <p className="font-semibold text-navy-900">{supplier?.name || quotation.supplierName}</p>
-                          <p className="text-sm text-gray-600">{quotation.supplierId}</p>
-                        </div>
-                        <Badge variant="warning">Late</Badge>
-                      </div>
-                      <div className="grid grid-cols-3 gap-4 text-sm">
-                        <div>
-                          <span className="text-gray-600">Unit Price</span>
-                          <p className="font-medium">₹{quotation.unitPrice}/unit</p>
-                        </div>
-                        <div>
-                          <span className="text-gray-600">Total</span>
-                          <p className="font-medium">₹{quotation.totalPrice.toLocaleString()}</p>
-                        </div>
-                        <div>
-                          <span className="text-gray-600">Delivery</span>
-                          <p className="font-medium">{quotation.deliveryTime} Days</p>
-                        </div>
-                      </div>
-                      <div className="mt-3 pt-3 border-t">
-                        <span className="text-xs text-warning-700">Submitted: {quotation.submittedAt} (Late)</span>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <CheckCircle className="w-8 h-8 text-green-400 mx-auto mb-2" />
-                <p className="text-gray-600">No late submissions</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Action Buttons */}
-        {onTimeQuotations.length > 0 && (
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex gap-4">
-                <Button onClick={() => handleProceedToComparison(selectedRFQ)} className="flex-1">
-                  <Eye className="w-4 h-4 mr-2" />
-                  Compare Suppliers
-                </Button>
-                <Button onClick={() => handleProceedToNegotiation(selectedRFQ)} variant="secondary" className="flex-1">
-                  <MessageSquare className="w-4 h-4 mr-2" />
-                  Start Negotiation
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          </div>
         )}
+
+        {/* Quotations Ledger Grid */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-bold text-navy-900 uppercase tracking-wider flex items-center gap-1.5">
+              <CheckCircle className="w-4 h-4 text-emerald-600" />
+              Received Quotations ({rfqQuotations.length})
+            </h3>
+            <span className="text-[11px] text-gray-500">
+              {onTimeQuotations.length} On-Time &bull; {lateQuotations.length} Late
+            </span>
+          </div>
+
+          {rfqQuotations.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              {rfqQuotations.map(quotation => {
+                const supplier = suppliers.find(s => s.id === quotation.supplierId)
+                const isLate = quotation.submissionStatus === 'late'
+
+                return (
+                  <div
+                    key={quotation.id}
+                    onClick={() => navigate(`/supplier-comparison/${selectedRFQ.id}`)}
+                    className={`p-3.5 rounded-xl border bg-white hover:shadow-md transition-all cursor-pointer ${
+                      isLate ? 'border-amber-200' : 'border-gray-200'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div>
+                        <h4 className="text-xs font-bold text-navy-900 truncate">
+                          {supplier?.name || quotation.supplierName}
+                        </h4>
+                        <p className="text-[10px] text-gray-500">{quotation.supplierId}</p>
+                      </div>
+                      <Badge variant={isLate ? 'warning' : 'success'} className="text-[10px]">
+                        {isLate ? 'Late' : 'On-Time'}
+                      </Badge>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-1.5 p-2 bg-gray-50 rounded-lg border border-gray-100 text-center text-xs">
+                      <div>
+                        <span className="text-[10px] text-gray-400 block font-medium">Unit Price</span>
+                        <span className="font-bold text-navy-900">₹{quotation.unitPrice}/u</span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-gray-400 block font-medium">Lead Time</span>
+                        <span className="font-bold text-blue-700">{quotation.deliveryTime} Days</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2 mt-2 border-t border-gray-100 text-[11px]">
+                      <span className="text-gray-400">Total: ₹{quotation.totalPrice?.toLocaleString()}</span>
+                      <span className="text-blue-600 font-semibold flex items-center gap-0.5">
+                        Inspect
+                        <ArrowRight className="w-3 h-3" />
+                      </span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <Card className="p-8 text-center border-dashed">
+              <Clock className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+              <p className="text-xs font-semibold text-gray-700">Awaiting Supplier Submissions</p>
+              <p className="text-[11px] text-gray-500 mt-0.5">
+                Quotations will automatically populate as suppliers respond before the deadline.
+              </p>
+            </Card>
+          )}
+        </div>
       </div>
     )
   }
 
   // List View
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-5 max-w-7xl mx-auto">
+      {/* List Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-gray-200 shadow-2xs">
         <div>
-          <h1 className="text-2xl font-bold text-navy-900">RFQs & Quotations</h1>
-          <p className="text-gray-600 mt-1">Manage RFQs and review supplier quotations</p>
+          <h1 className="text-xl font-bold text-navy-900 flex items-center gap-2">
+            <FileText className="w-5 h-5 text-blue-600" />
+            RFQs & Supplier Quotations
+          </h1>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Real-time RFQ dispatch, multi-source quotation collation, and deadline tracking
+          </p>
         </div>
-        <Button onClick={() => navigate('/create-rfq')}>
-          <Plus className="w-4 h-4 mr-2" />
+
+        <Button
+          onClick={() => navigate('/create-rfq')}
+          size="sm"
+          className="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs h-8 shadow-2xs"
+        >
+          <Plus className="w-3.5 h-3.5 mr-1" />
           Create RFQ
         </Button>
       </div>
 
-      {/* Notification Banner */}
       {notification && (
-        <div className={`p-4 rounded-lg flex items-center justify-between border ${
-          notification.type === 'error' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-green-50 border-green-200 text-green-800'
+        <div className={`p-3 rounded-lg flex items-center justify-between border text-xs font-semibold ${
+          notification.type === 'error' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-emerald-50 border-emerald-200 text-emerald-800'
         }`}>
-          <div className="flex items-center gap-2">
-            {notification.type === 'error' ? <AlertTriangle className="w-5 h-5" /> : <CheckCircle className="w-5 h-5" />}
-            <span className="font-medium text-sm">{notification.message}</span>
-          </div>
-          <button onClick={() => setNotification(null)} className="text-xs font-semibold underline ml-4">Dismiss</button>
+          <span>{notification.message}</span>
+          <button onClick={() => setNotification(null)} className="underline ml-4 text-[11px]">Dismiss</button>
         </div>
       )}
 
-      {/* Filters */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <Input
-                  placeholder="Search..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-            <div className="w-48">
-              <Select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
-                <option value="all">All Status</option>
-                <option value="draft">Draft / Created</option>
-                <option value="open">Open / RFQ Sent</option>
-                <option value="rfq_viewed">RFQ Viewed</option>
-                <option value="quotation_submitted">Quotation Submitted</option>
-                <option value="supplier_selected">Supplier Selected</option>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Filters Bar */}
+      <div className="flex flex-col sm:flex-row items-center gap-3 bg-white p-3 rounded-xl border border-gray-200 shadow-2xs">
+        <div className="flex-1 relative w-full">
+          <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+          <Input
+            placeholder="Search component or RFQ ID..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-9 h-9 text-xs"
+          />
+        </div>
+        <div className="w-full sm:w-48">
+          <Select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="h-9 text-xs"
+          >
+            <option value="all">All Statuses</option>
+            <option value="draft">Draft / Created</option>
+            <option value="open">Open / Dispatched</option>
+            <option value="quotation_submitted">Quotations Received</option>
+            <option value="supplier_selected">Supplier Selected</option>
+          </Select>
+        </div>
+      </div>
 
       {/* RFQs Grid */}
       {filteredRFQs.length > 0 ? (
@@ -460,15 +371,13 @@ const RFQs = () => {
           ))}
         </div>
       ) : (
-        <Card>
-          <CardContent className="p-12 text-center">
-            <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">No RFQs found</p>
-            <Button onClick={() => navigate('/create-rfq')} className="mt-4">
-              <Plus className="w-4 h-4 mr-2" />
-              Create First RFQ
-            </Button>
-          </CardContent>
+        <Card className="p-12 text-center border-dashed">
+          <FileText className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+          <p className="text-xs font-semibold text-gray-700">No RFQs matching filter</p>
+          <Button onClick={() => navigate('/create-rfq')} size="sm" className="mt-3 text-xs">
+            <Plus className="w-3.5 h-3.5 mr-1" />
+            Create First RFQ
+          </Button>
         </Card>
       )}
     </div>

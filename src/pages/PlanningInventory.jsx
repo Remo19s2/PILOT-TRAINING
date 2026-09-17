@@ -207,306 +207,236 @@ const PlanningInventory = () => {
   ]
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-navy-900">Planning & Inventory Agent</h1>
-          <p className="text-gray-600 mt-1">AI-powered inventory analysis and procurement planning</p>
+    <div className="space-y-4 max-w-7xl mx-auto pb-8">
+      {/* Toast Notification */}
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 px-4 py-2.5 rounded-lg shadow-xl text-white text-sm font-semibold transition-all flex items-center gap-2 ${toast.ok ? 'bg-emerald-600' : 'bg-rose-600'}`}>
+          {toast.msg}
         </div>
-        <Button onClick={handleRunAIAnalysis} disabled={isAnalyzing}>
-          <Brain className="w-4 h-4 mr-2" />
-          {isAnalyzing ? 'Analyzing...' : 'Run AI Analysis'}
-        </Button>
-      </div>
+      )}
 
-      {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-primary-100 rounded-lg">
-                <ClipboardList className="w-6 h-6 text-primary-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Total Requirements</p>
-                <p className="text-2xl font-bold text-navy-900">{requirements.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-danger-100 rounded-lg">
-                <AlertTriangle className="w-6 h-6 text-danger-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Critical Shortages</p>
-                <p className="text-2xl font-bold text-danger-600">{requirements.filter(r => r.urgencyLevel === 'critical').length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-warning-100 rounded-lg">
-                <Package className="w-6 h-6 text-warning-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">Total Shortage</p>
-                <p className="text-2xl font-bold text-navy-900">{requirements.reduce((sum, r) => sum + r.shortageQuantity, 0).toLocaleString()}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-success-100 rounded-lg">
-                <TrendingUp className="w-6 h-6 text-success-600" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-600">AI Confidence</p>
-                <p className="text-2xl font-bold text-success-600">94%</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Demand vs Inventory Analysis</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={demandAnalysis}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="customer" fill="#3367d6" name="Customer Demand" />
-                <Bar dataKey="production" fill="#22c55e" name="Production Req" />
-                <Bar dataKey="inventory" fill="#f59e0b" name="Inventory" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Urgency Distribution</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie
-                  data={urgencyDistribution}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={(entry) => `${entry.name}: ${entry.value}`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {urgencyDistribution.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Procurement Trend</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
-              <LineChart data={procurementTrend}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
-                <Line type="monotone" dataKey="value" stroke="#3367d6" strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Filters */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <Input
-                  placeholder="Search component name or ID..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-            <div className="w-48">
-              <Select
-                value={urgencyFilter}
-                onChange={(e) => setUrgencyFilter(e.target.value)}
-              >
-                <option value="all">All Urgency Levels</option>
-                <option value="critical">Critical</option>
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
-              </Select>
-            </div>
+      {/* Header Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight">Planning & Inventory Control</h1>
+            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
+              <Brain className="w-3 h-3 mr-1 text-indigo-500" />
+              BOM Explosion & Demand Forecast
+            </span>
           </div>
-        </CardContent>
-      </Card>
+          <p className="text-xs text-slate-500 mt-0.5">Automated shortage detection, buffer threshold tracking, and replenishment planning</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button 
+            size="sm" 
+            onClick={handleRunAIAnalysis} 
+            disabled={isAnalyzing}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium"
+          >
+            {isAnalyzing ? (
+              <><Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />Analyzing Requirements...</>
+            ) : (
+              <><Brain className="w-3.5 h-3.5 mr-1.5" />Run AI Shortage Analysis</>
+            )}
+          </Button>
+        </div>
+      </div>
 
-      {/* Requirements Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Procurement Requirements</CardTitle>
-          <CardDescription>{filteredRequirements.length} components requiring procurement</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-3 px-4 font-semibold text-sm">Component</th>
-                  <th className="text-left py-3 px-4 font-semibold text-sm">Component ID</th>
-                  <th className="text-right py-3 px-4 font-semibold text-sm">Required Qty</th>
-                  <th className="text-right py-3 px-4 font-semibold text-sm">Available</th>
-                  <th className="text-right py-3 px-4 font-semibold text-sm">Shortage</th>
-                  <th className="text-left py-3 px-4 font-semibold text-sm">Required Date</th>
-                  <th className="text-left py-3 px-4 font-semibold text-sm">Urgency</th>
-                  <th className="text-left py-3 px-4 font-semibold text-sm">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredRequirements.map((req) => (
-                  <tr key={req.id} className="border-b hover:bg-gray-50">
-                    <td className="py-3 px-4">
-                      <span className="font-medium text-navy-900">{req.componentName}</span>
+      {/* Compact KPI Row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="bg-white p-3 rounded-xl border border-slate-200 flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium text-slate-500">Tracked Components</p>
+            <p className="text-xl font-bold text-slate-900 mt-0.5">{requirements.length}</p>
+          </div>
+          <div className="p-2 bg-slate-100 text-slate-700 rounded-lg">
+            <ClipboardList className="w-4 h-4" />
+          </div>
+        </div>
+        <div className="bg-white p-3 rounded-xl border border-rose-100 bg-rose-50/20 flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium text-slate-500">Critical Shortages</p>
+            <p className="text-xl font-bold text-rose-600 mt-0.5">{requirements.filter(r => r.urgencyLevel === 'critical').length}</p>
+          </div>
+          <div className="p-2 bg-rose-100 text-rose-600 rounded-lg">
+            <AlertTriangle className="w-4 h-4" />
+          </div>
+        </div>
+        <div className="bg-white p-3 rounded-xl border border-amber-100 bg-amber-50/20 flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium text-slate-500">Total Deficit Units</p>
+            <p className="text-xl font-bold text-amber-600 mt-0.5">{requirements.reduce((sum, r) => sum + r.shortageQuantity, 0).toLocaleString()}</p>
+          </div>
+          <div className="p-2 bg-amber-100 text-amber-600 rounded-lg">
+            <Package className="w-4 h-4" />
+          </div>
+        </div>
+        <div className="bg-white p-3 rounded-xl border border-emerald-100 bg-emerald-50/20 flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium text-slate-500">Model Accuracy</p>
+            <p className="text-xl font-bold text-emerald-600 mt-0.5">94.8%</p>
+          </div>
+          <div className="p-2 bg-emerald-100 text-emerald-600 rounded-lg">
+            <TrendingUp className="w-4 h-4" />
+          </div>
+        </div>
+      </div>
+
+      {/* Filter Row */}
+      <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-2.5">
+        <div className="relative flex-1 min-w-[220px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+          <Input
+            placeholder="Search by component name or ID..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-8 h-8 text-xs bg-slate-50 border-slate-200"
+          />
+        </div>
+        <div className="w-40">
+          <Select
+            value={urgencyFilter}
+            onChange={(e) => setUrgencyFilter(e.target.value)}
+            className="h-8 text-xs"
+          >
+            <option value="all">All Urgency Levels</option>
+            <option value="critical">Critical</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </Select>
+        </div>
+      </div>
+
+      {/* High-Density Requirements & Shortage Table */}
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+        <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+          <div>
+            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Procurement Deficit Ledger</h3>
+            <p className="text-[11px] text-slate-400 mt-0.5">{filteredRequirements.length} component requirements calculated from active production orders</p>
+          </div>
+          <Button variant="secondary" size="sm" onClick={handleExportAnalysis} className="h-7 text-xs px-2.5">
+            <FileText className="w-3.5 h-3.5 mr-1" /> Export CSV
+          </Button>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 font-semibold uppercase text-[10px] tracking-wider">
+              <tr>
+                <th className="py-2.5 px-3.5">Component & Code</th>
+                <th className="py-2.5 px-3.5 text-right">Required</th>
+                <th className="py-2.5 px-3.5 text-right">In Stock</th>
+                <th className="py-2.5 px-3.5 text-right">Shortage</th>
+                <th className="py-2.5 px-3.5">Stock Coverage</th>
+                <th className="py-2.5 px-3.5">Due Date</th>
+                <th className="py-2.5 px-3.5">Urgency</th>
+                <th className="py-2.5 px-3.5 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {filteredRequirements.map((req) => {
+                const coverage = Math.min(100, Math.round((req.availableInventory / req.requiredQuantity) * 100))
+                const isCritical = req.urgencyLevel === 'critical'
+                const isHigh = req.urgencyLevel === 'high'
+
+                return (
+                  <tr key={req.id} className="hover:bg-slate-50/70 transition-colors">
+                    <td className="py-3 px-3.5">
+                      <p className="font-semibold text-slate-900">{req.componentName}</p>
+                      <span className="text-[11px] text-slate-400 font-mono">{req.componentId}</span>
                     </td>
-                    <td className="py-3 px-4">
-                      <span className="text-gray-700">{req.componentId}</span>
+                    <td className="py-3 px-3.5 text-right font-medium text-slate-700">
+                      {req.requiredQuantity.toLocaleString()}
                     </td>
-                    <td className="py-3 px-4 text-right">
-                      <span className="text-gray-700">{req.requiredQuantity.toLocaleString()}</span>
+                    <td className="py-3 px-3.5 text-right font-medium text-slate-700">
+                      {req.availableInventory.toLocaleString()}
                     </td>
-                    <td className="py-3 px-4 text-right">
-                      <span className="text-gray-700">{req.availableInventory.toLocaleString()}</span>
+                    <td className="py-3 px-3.5 text-right font-bold text-rose-600">
+                      -{req.shortageQuantity.toLocaleString()}
                     </td>
-                    <td className="py-3 px-4 text-right">
-                      <span className="font-medium text-danger-600">{req.shortageQuantity.toLocaleString()}</span>
+                    <td className="py-3 px-3.5 min-w-[130px]">
+                      <div className="flex items-center justify-between text-[10px] text-slate-500 mb-1">
+                        <span>{coverage}% covered</span>
+                      </div>
+                      <Progress 
+                        value={coverage} 
+                        className="h-1.5"
+                        variant={coverage >= 75 ? 'success' : coverage >= 30 ? 'warning' : 'danger'}
+                      />
                     </td>
-                    <td className="py-3 px-4">
-                      <span className="text-gray-700">{req.requiredDate}</span>
+                    <td className="py-3 px-3.5 text-slate-600 font-medium">
+                      {req.requiredDate}
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-3.5">
                       {getUrgencyBadge(req.urgencyLevel)}
                     </td>
-                    <td className="py-3 px-4">
-                      <div className="flex gap-2">
-                        <Button variant="secondary" size="sm">
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        <Button variant="primary" size="sm">
-                          <ArrowRight className="w-4 h-4" />
+                    <td className="py-3 px-3.5 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          disabled={sendingShortageId === req.id}
+                          onClick={() => handleReportShortage(req)}
+                          className="h-7 text-[11px] px-2 text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200"
+                        >
+                          {sendingShortageId === req.id ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <><AlertTriangle className="w-3 h-3 mr-1" />Report Shortage</>
+                          )}
                         </Button>
                       </div>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
-      {/* AI Analysis Panel */}
-      <Card className="border-2 border-accent-500 bg-accent-50">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-accent-900">
-            <Brain className="w-5 h-5 text-accent-600" />
-            AI Analysis - Planning & Inventory
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 bg-white rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <Target className="w-4 h-4 text-primary-600" />
-                <p className="text-sm font-medium text-gray-700">Customer Demand Analysis</p>
-              </div>
-              <p className="text-xs text-gray-600">AI analyzes historical customer orders, seasonal patterns, and market trends to predict future demand with 94% accuracy.</p>
-            </div>
-            <div className="p-4 bg-white rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <BarChart3 className="w-4 h-4 text-success-600" />
-                <p className="text-sm font-medium text-gray-700">Production Requirements</p>
-              </div>
-              <p className="text-xs text-gray-600">Calculates exact material needs based on production schedules, BOM requirements, and capacity planning.</p>
-            </div>
-            <div className="p-4 bg-white rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <Package className="w-4 h-4 text-warning-600" />
-                <p className="text-sm font-medium text-gray-700">Inventory Optimization</p>
-              </div>
-              <p className="text-xs text-gray-600">Optimizes inventory levels by balancing safety stock, lead times, and carrying costs to prevent shortages.</p>
-            </div>
+      {/* Compact AI Strategy & Prescriptive Actions */}
+      <div className="bg-white rounded-xl border border-indigo-100 p-4 shadow-sm bg-gradient-to-r from-indigo-50/40 via-white to-indigo-50/20">
+        <div className="flex items-center justify-between mb-3 border-b border-indigo-100 pb-2">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-indigo-600" />
+            <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">AI Planning & Sourcing Recommendations</h3>
           </div>
+          <Button 
+            size="sm" 
+            onClick={handleGenerateRFQs}
+            className="h-7 text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-3"
+          >
+            <Brain className="w-3.5 h-3.5 mr-1" /> Generate Replenishment RFQs
+          </Button>
+        </div>
 
-          <div className="p-4 bg-white rounded-lg border border-accent-200">
-            <h4 className="font-semibold text-accent-900 mb-3">AI Recommendations</h4>
-            <div className="space-y-3">
-              <div className="flex items-start gap-3">
-                <CheckCircle className="w-5 h-5 text-success-600 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-medium text-navy-900">Prioritize Steel Sheets Procurement</p>
-                  <p className="text-xs text-gray-600">Critical shortage of 29,550 units with highest urgency. Recommend immediate RFQ to IndustrialX with expedited delivery.</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <CheckCircle className="w-5 h-5 text-success-600 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-medium text-navy-900">Split ECU Order for Risk Mitigation</p>
-                  <p className="text-xs text-gray-600">Split 7,000 unit shortage between TechCorp (60%) and AutoParts (40%) to reduce single-source dependency risk.</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <CheckCircle className="w-5 h-5 text-success-600 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-medium text-navy-900">Increase Safety Stock for Fasteners</p>
-                  <p className="text-xs text-gray-600">Current buffer insufficient. Recommend increasing safety stock by 20% to prevent future shortages.</p>
-                </div>
-              </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+          <div className="p-3 bg-white rounded-lg border border-slate-200/80 shadow-2xs">
+            <div className="flex items-center gap-1.5 font-semibold text-slate-900 mb-1">
+              <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+              Prioritize Steel Sheets Expedited Order
             </div>
+            <p className="text-[11px] text-slate-600">Critical shortage of 29,550 units with 5-day lead time window. Immediate replenishment RFQ advised.</p>
           </div>
-
-          <div className="flex gap-3">
-            <Button variant="accent" onClick={handleGenerateRFQs} className="flex-1">
-              <Brain className="w-4 h-4 mr-2" />
-              Generate RFQs
-            </Button>
-            <Button variant="secondary" onClick={handleExportAnalysis} className="flex-1">
-              <FileText className="w-4 h-4 mr-2" />
-              Export Analysis
-            </Button>
+          <div className="p-3 bg-white rounded-lg border border-slate-200/80 shadow-2xs">
+            <div className="flex items-center gap-1.5 font-semibold text-slate-900 mb-1">
+              <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+              Split Micro-Actuator Demand (60/40)
+            </div>
+            <p className="text-[11px] text-slate-600">Allocate 60% to TechCorp and 40% to secondary qualified source to mitigate single-source dependency.</p>
           </div>
-        </CardContent>
-      </Card>
+          <div className="p-3 bg-white rounded-lg border border-slate-200/80 shadow-2xs">
+            <div className="flex items-center gap-1.5 font-semibold text-slate-900 mb-1">
+              <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+              Dynamic Safety Stock Rebalancing
+            </div>
+            <p className="text-[11px] text-slate-600">Increase safety buffer by +20% on fast-moving fasteners to absorb assembly spikes.</p>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

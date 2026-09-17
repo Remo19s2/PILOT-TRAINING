@@ -2,19 +2,19 @@ import { cn } from '../../lib/utils'
 
 const Badge = ({ children, variant = 'default', className }) => {
   const variants = {
-    default: 'bg-gray-100 text-gray-800',
-    primary: 'bg-primary-100 text-primary-800',
-    success: 'bg-success-100 text-success-800',
-    warning: 'bg-warning-100 text-warning-800',
-    danger: 'bg-danger-100 text-danger-800',
-    accent: 'bg-accent-100 text-accent-800',
+    default: 'bg-slate-100 text-slate-700 border-slate-200/80',
+    primary: 'bg-primary-50 text-primary-700 border-primary-200/70',
+    success: 'bg-success-50 text-success-700 border-success-200/70',
+    warning: 'bg-warning-50 text-warning-700 border-warning-200/70',
+    danger: 'bg-danger-50 text-danger-700 border-danger-200/70',
+    accent: 'bg-accent-50 text-accent-700 border-accent-200/70',
   }
 
   return (
     <span
       className={cn(
-        'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
-        variants[variant],
+        'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border tracking-wide transition-colors',
+        variants[variant] || variants.default,
         className
       )}
     >
@@ -24,3 +24,4 @@ const Badge = ({ children, variant = 'default', className }) => {
 }
 
 export { Badge }
+
