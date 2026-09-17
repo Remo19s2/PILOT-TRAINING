@@ -4,6 +4,8 @@ const StatusBadge = ({ status }) => {
   const getStatusVariant = (status) => {
     const statusMap = {
       new: 'default',
+      draft: 'warning',
+      open: 'accent',
       under_review: 'warning',
       rfq_created: 'primary',
       rfq_sent: 'accent',

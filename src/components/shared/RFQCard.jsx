@@ -1,11 +1,14 @@
 import { Card, CardHeader, CardContent, CardTitle, CardDescription } from '../ui/Card'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
-import { Eye, Calendar, Package, DollarSign, Clock, AlertCircle } from 'lucide-react'
+import { Eye, Calendar, Package, DollarSign, Clock, AlertCircle, Send, Users } from 'lucide-react'
 import StatusBadge from './StatusBadge'
 
-const RFQCard = ({ rfq, onView, onSelect }) => {
+const RFQCard = ({ rfq, onView, onSelect, onSend, isSending = false }) => {
   if (!rfq) return null
+  
+  const isDraft = ['draft', 'rfq_created'].includes(rfq.status?.toLowerCase())
+  const supplierCount = rfq.suppliers?.length || rfq.supplierIds?.length || rfq.expectedSupplierCount || 0
   
   // Calculate time remaining for deadline
   const getTimeRemaining = (deadline) => {
@@ -80,6 +83,12 @@ const RFQCard = ({ rfq, onView, onSelect }) => {
           <DollarSign className="w-4 h-4" />
           <span>Budget: ₹{rfq.expectedBudget?.toLocaleString() || 'N/A'}</span>
         </div>
+        {supplierCount > 0 && (
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            <Users className="w-4 h-4" />
+            <span>{supplierCount} Supplier{supplierCount !== 1 ? 's' : ''} Invited</span>
+          </div>
+        )}
         
         {/* Quotation Deadline Section */}
         {rfq.quotationDeadline && (
@@ -107,11 +116,26 @@ const RFQCard = ({ rfq, onView, onSelect }) => {
           </div>
         )}
 
-        <div className="flex gap-2 pt-2">
+        <div className="flex flex-wrap gap-2 pt-2 items-center">
           <Button variant="secondary" size="sm" onClick={() => onView(rfq)}>
             <Eye className="w-4 h-4 mr-2" />
             View
           </Button>
+          {onSend && isDraft && (
+            <Button
+              variant="primary"
+              size="sm"
+              disabled={isSending}
+              onClick={(e) => {
+                e.stopPropagation()
+                onSend(rfq)
+              }}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              <Send className="w-4 h-4 mr-1.5" />
+              {isSending ? 'Sending...' : 'Send to Suppliers'}
+            </Button>
+          )}
           {onSelect && rfq.status === 'quotation_submitted' && (
             <Button variant="primary" size="sm" onClick={() => onSelect(rfq)}>
               Select Supplier

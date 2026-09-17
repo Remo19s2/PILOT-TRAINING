@@ -5,21 +5,62 @@ import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Select } from '../components/ui/Select'
 import { Progress } from '../components/ui/Progress'
-import { Package, AlertTriangle, TrendingUp, Calendar, Target, ClipboardList, BarChart3, Plus, Filter, Search, ArrowRight, Brain, FileText, Eye, CheckCircle, Clock } from 'lucide-react'
+import { Package, AlertTriangle, TrendingUp, Calendar, Target, ClipboardList, BarChart3, Plus, Filter, Search, ArrowRight, Brain, FileText, Eye, CheckCircle, Clock, Loader2 } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts'
+import { triggerInventoryShortage } from '../api/events'
 
 const PlanningInventory = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [urgencyFilter, setUrgencyFilter] = useState('all')
   const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [sendingShortageId, setSendingShortageId] = useState(null)
+  const [toast, setToast] = useState(null)
 
-  const handleRunAIAnalysis = () => {
+  const showToast = (msg, ok = true) => {
+    setToast({ msg, ok })
+    setTimeout(() => setToast(null), 4000)
+  }
+
+  const handleRunAIAnalysis = async () => {
     setIsAnalyzing(true)
-    // Simulate AI analysis
-    setTimeout(() => {
+    try {
+      // Fire shortage events for all critical/high items
+      const criticalItems = requirements.filter(r => ['critical', 'high'].includes(r.urgencyLevel))
+      await Promise.all(criticalItems.map(item =>
+        triggerInventoryShortage({
+          component_id:      item.componentId,
+          current_inventory: item.availableInventory,
+          required_quantity: item.requiredQuantity,
+          shortage_quantity: item.shortageQuantity,
+          required_date:     item.requiredDate,
+          priority:          item.urgencyLevel === 'critical' ? 'CRITICAL' : 'HIGH',
+        })
+      ))
+      showToast(`✅ AI Analysis triggered — ${criticalItems.length} shortage event(s) sent to n8n`, true)
+    } catch (err) {
+      showToast(`❌ Failed: ${err.message}`, false)
+    } finally {
       setIsAnalyzing(false)
-      alert('AI Analysis completed successfully!')
-    }, 2000)
+    }
+  }
+
+  const handleReportShortage = async (item) => {
+    setSendingShortageId(item.id)
+    try {
+      await triggerInventoryShortage({
+        component_id:      item.componentId,
+        current_inventory: item.availableInventory,
+        required_quantity: item.requiredQuantity,
+        shortage_quantity: item.shortageQuantity,
+        required_date:     item.requiredDate,
+        priority:          item.urgencyLevel === 'critical' ? 'CRITICAL' : item.urgencyLevel === 'high' ? 'HIGH' : 'MEDIUM',
+      })
+      showToast(`✅ Shortage reported: ${item.componentName}`, true)
+    } catch (err) {
+      showToast(`❌ Failed: ${err.message}`, false)
+    } finally {
+      setSendingShortageId(null)
+    }
   }
 
   const handleGenerateRFQs = () => {

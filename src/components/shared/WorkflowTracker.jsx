@@ -41,7 +41,10 @@ const WorkflowTracker = ({ currentStatus, workflowType = 'procurement', deadline
   const workflowStatuses = steps.map(s => s.status)
   
   const getStatusIndex = (status) => {
-    return workflowStatuses.indexOf(status)
+    let normalized = status
+    if (status === 'draft') normalized = 'rfq_created'
+    if (status === 'open') normalized = 'rfq_sent'
+    return workflowStatuses.indexOf(normalized)
   }
 
   const currentIndex = getStatusIndex(currentStatus)
@@ -51,7 +54,9 @@ const WorkflowTracker = ({ currentStatus, workflowType = 'procurement', deadline
       {steps.map((step, index) => {
         const stepIndex = getStatusIndex(step.status)
         const isCompleted = stepIndex !== -1 && stepIndex < currentIndex
-        const isCurrent = step.status === currentStatus
+        const isCurrent = step.status === currentStatus ||
+          (currentStatus === 'draft' && step.status === 'rfq_created') ||
+          (currentStatus === 'open' && step.status === 'rfq_sent')
         const isPending = stepIndex > currentIndex
 
         // Special handling for deadline step

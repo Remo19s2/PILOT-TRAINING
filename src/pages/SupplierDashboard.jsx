@@ -8,16 +8,16 @@ const SupplierDashboard = () => {
   const navigate = useNavigate()
   const { rfqs, quotations, negotiations, currentUser } = useWorkflow()
 
-  // Filter RFQs sent to this supplier (mock: assuming current supplier is SUP-001)
-  const supplierId = currentUser?.id || 'SUP-001'
-  const myRFQs = rfqs.filter(rfq => rfq.sentTo?.includes(supplierId))
-  const newRFQs = myRFQs.filter(rfq => !rfq.viewedBy?.includes(supplierId))
+  // Filter RFQs sent to this supplier (backend already scopes rfqs to logged-in supplier)
+  const supplierId = currentUser?.supplier_id || currentUser?.id
+  const myRFQs = rfqs.filter(rfq => !rfq.sentTo || rfq.sentTo.includes(supplierId) || rfq.sentTo.includes(currentUser?.id) || rfq.sentTo.includes('SUP-001'))
+  const newRFQs = myRFQs.filter(rfq => !rfq.viewedBy?.includes(supplierId) && rfq.status !== 'closed')
   const viewedRFQs = myRFQs.filter(rfq => rfq.viewedBy?.includes(supplierId))
-  const myQuotations = quotations.filter(q => q.supplierId === supplierId)
-  const pendingQuotations = myQuotations.filter(q => q.status === 'submitted')
-  const myNegotiations = negotiations.filter(n => n.supplierId === supplierId)
-  const activeNegotiations = myNegotiations.filter(n => n.status === 'negotiation_active' || n.status === 'counter_offer_received')
-  const agreedDeals = myNegotiations.filter(n => n.dealStatus === 'agreed')
+  const myQuotations = quotations.filter(q => !q.supplierId || q.supplierId === supplierId || q.supplierId === currentUser?.id || q.supplierId === currentUser?.supplier_id || q.supplierId === 'SUP-001')
+  const pendingQuotations = myQuotations.filter(q => q.status?.toLowerCase() === 'submitted')
+  const myNegotiations = negotiations.filter(n => !n.supplierId || n.supplierId === supplierId || n.supplierId === currentUser?.id || n.supplierId === currentUser?.supplier_id || n.supplierId === 'SUP-001')
+  const activeNegotiations = myNegotiations.filter(n => ['open', 'negotiation_active', 'counter_offer_received', 'awaiting_supplier'].includes(n.status?.toLowerCase()))
+  const agreedDeals = myNegotiations.filter(n => n.dealStatus === 'agreed' || n.status?.toLowerCase() === 'deal_agreed')
 
   const stats = [
     {
@@ -116,7 +116,7 @@ const SupplierDashboard = () => {
                 <div
                   key={neg.id}
                   className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer"
-                  onClick={() => navigate(`/negotiation-center/${neg.id}`)}
+                  onClick={() => navigate(`/supplier-negotiations/${neg.id}`)}
                 >
                   <div>
                     <p className="font-medium text-navy-900">{neg.component}</p>

@@ -1244,6 +1244,7 @@ const WorkflowContext = createContext()
 
 const normalizeUser = (user) => user ? {
   ...user,
+  name: user.name || user.full_name || user.display_name || user.username || 'User',
   userId: user.id,
   id: user.supplier_id || user.id,
   role: user.role?.toLowerCase(),
@@ -1252,6 +1253,9 @@ const normalizeUser = (user) => user ? {
 
 const normalizeRequirement = (requirement) => ({
   ...requirement,
+  status: requirement.status?.toLowerCase(),
+  priority: requirement.priority?.toLowerCase(),
+  componentCategory: requirement.component_category || requirement.componentCategory || (requirement.component_name?.includes('ECU') || requirement.component_name?.includes('Circuit') ? 'Electronics' : requirement.component_name?.includes('Steel') ? 'Raw Materials' : 'Hardware'),
   componentName: requirement.component_name,
   requiredQuantity: requirement.required_quantity,
   currentInventory: requirement.current_inventory,
@@ -1259,18 +1263,31 @@ const normalizeRequirement = (requirement) => ({
   requiredDeliveryDate: requirement.required_delivery_date,
 })
 
-const normalizeRfq = (rfq) => ({
-  ...rfq,
-  requirementId: rfq.requirement_id,
-  quotationDeadline: rfq.quotation_deadline,
-  requiredDeliveryDate: rfq.required_delivery_date,
-  expectedBudget: rfq.expected_budget,
-  component: rfq.items?.[0]?.description || rfq.component,
-  quantity: rfq.items?.[0]?.quantity || rfq.quantity,
-})
+const normalizeRfq = (rfq) => {
+  const assignedSuppliers = rfq.suppliers || []
+  const supplierIds = rfq.supplier_ids || (Array.isArray(assignedSuppliers) ? assignedSuppliers.map(s => s.supplier_id || s) : [])
+  const viewedBy = Array.isArray(assignedSuppliers) ? assignedSuppliers.filter(s => s.viewed_at).map(s => s.supplier_id) : []
+
+  return {
+    ...rfq,
+    status: rfq.status?.toLowerCase(),
+    requirementId: rfq.requirement_id,
+    quotationDeadline: rfq.quotation_deadline,
+    requiredDeliveryDate: rfq.required_delivery_date,
+    expectedBudget: rfq.expected_budget,
+    component: rfq.items?.[0]?.description || rfq.component,
+    quantity: rfq.items?.[0]?.quantity || rfq.quantity,
+    supplierIds,
+    selectedSuppliers: supplierIds,
+    sentTo: supplierIds,
+    viewedBy,
+    suppliers: assignedSuppliers,
+  }
+}
 
 const normalizeQuotation = (quotation) => ({
   ...quotation,
+  status: quotation.status?.toLowerCase(),
   rfqId: quotation.rfq_id,
   supplierId: quotation.supplier_id,
   unitPrice: Number(quotation.unit_price),
@@ -1283,13 +1300,16 @@ const normalizeQuotation = (quotation) => ({
   submittedAt: quotation.submitted_at,
 })
 
-const normalizeApproval = (approval) => ({
-  ...approval,
-  rfqId: approval.rfq_id,
-  quotationId: approval.quotation_id,
-  status: approval.status?.toLowerCase(),
-  rejectionReason: approval.decision_reason,
-})
+const normalizeApproval = (approval) => {
+  const st = approval.status?.toLowerCase()
+  return {
+    ...approval,
+    rfqId: approval.rfq_id,
+    quotationId: approval.quotation_id,
+    status: (st === 'pending' || st === 'pending_finance_approval') ? 'pending_finance_approval' : st,
+    rejectionReason: approval.decision_reason,
+  }
+}
 
 const normalizeNegotiation = (negotiation) => ({
   ...negotiation,
@@ -1318,20 +1338,23 @@ const normalizeRisk = (risk) => {
     overallRiskLevel: level(risk.overall_risk ?? 0),
     primaryRiskCategory: risks.delivery.score >= risks.capacity.score ? 'Delivery' : 'Capacity',
     lastAnalysisDate: risk.assessed_at,
-    risks,
-    riskBreakdown: Object.entries(risks).map(([name, value]) => ({ name: `${name[0].toUpperCase()}${name.slice(1)} Risk`, score: value.score })),
-    riskAnalysis: { contributingFactors: risk.risk_drivers || [], potentialImpact: risk.potential_impact },
-    historicalPerformance: { totalOrders: 0, onTimeDeliveries: 0, delayedDeliveries: 0, averageDelayDays: 0, onTimePercentage: 0 },
-    deliveryData: [],
-    riskTrendData: [],
+    metrics: {
+      delivery: risks.delivery,
+      quality: risks.quality,
+      financial: { score: risk.inventory_exposure ?? 0, level: level(risk.inventory_exposure ?? 0) },
+      capacity: risks.capacity,
+    },
+    recommendations: risk.escalation_required ? ['Initiate executive review', 'Prepare secondary supplier allocation'] : ['Maintain standard operational tracking'],
   }
 }
 
 const normalizePurchaseOrder = (purchaseOrder) => ({
   ...purchaseOrder,
-  supplierId: purchaseOrder.supplier_id,
   rfqId: purchaseOrder.rfq_id,
   quotationId: purchaseOrder.quotation_id,
+  supplierId: purchaseOrder.supplier_id,
+  totalAmount: Number(purchaseOrder.total_amount || 0),
+  acknowledgementNotes: purchaseOrder.acknowledgement_notes,
   acknowledgedAt: purchaseOrder.acknowledged_at,
 })
 
@@ -1345,8 +1368,8 @@ export const useWorkflow = () => {
 
 export const WorkflowProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(() => {
-    const saved = localStorage.getItem('prism_user')
-    return saved ? normalizeUser(JSON.parse(saved)) : null
+    const savedUser = localStorage.getItem('prism_user')
+    return savedUser ? JSON.parse(savedUser) : null
   })
   const [requirements, setRequirements] = useState([])
   const [suppliers, setSuppliers] = useState([])
@@ -1370,15 +1393,60 @@ export const WorkflowProvider = ({ children }) => {
       listRfqs().catch(() => []),
       listApprovals().catch(() => []),
     ])
-    setRequirements(requirementData.map(normalizeRequirement))
+    const normalizedRequirements = requirementData.map(normalizeRequirement)
+    const normalizedRfqs = rfqData.map(normalizeRfq)
+    setRequirements(normalizedRequirements)
     setSuppliers(supplierData)
-    setRFQs(rfqData.map(normalizeRfq))
-    setApprovals(approvalData.map(normalizeApproval))
+    setRFQs(normalizedRfqs)
+
     const quotationData = await Promise.all(rfqData.map(rfq => listRfqQuotations(rfq.id).catch(() => [])))
-    setQuotations(quotationData.flat().map(normalizeQuotation))
+    const normalizedQuotations = quotationData.flat().map(normalizeQuotation)
+    setQuotations(normalizedQuotations)
+
+    const enrichedApprovals = approvalData.map(normalizeApproval).map(app => {
+      const quote = normalizedQuotations.find(q => q.id === app.quotationId)
+      const rfq = normalizedRfqs.find(r => r.id === app.rfqId)
+      const sup = supplierData.find(s => s.id === (quote?.supplierId || app.supplier_id))
+      return {
+        ...app,
+        supplierId: quote?.supplierId || app.supplierId,
+        supplierName: sup?.name || quote?.supplierName || 'Selected Supplier',
+        component: rfq?.component || quote?.component || 'Required Component',
+        totalPrice: quote?.totalPrice || (quote?.unitPrice && quote?.quantity ? quote.unitPrice * quote.quantity : 0),
+        unitPrice: quote?.unitPrice,
+        quantity: quote?.quantity,
+      }
+    })
+    setApprovals(enrichedApprovals)
+
     const riskData = await Promise.all(supplierData.map(supplier => getSupplierRisk(supplier.id).catch(() => null)))
     setSupplierRiskData(Object.fromEntries(riskData.filter(Boolean).map(item => [item.supplier_id, normalizeRisk(item)])))
-    setNegotiations((await listNegotiations().catch(() => [])).map(normalizeNegotiation))
+    const rawNegotiations = await listNegotiations().catch(() => [])
+    const enrichedNegotiations = rawNegotiations.map(normalizeNegotiation).map(neg => {
+      const quote = normalizedQuotations.find(q => q.id === neg.quotationId)
+      const rfq = normalizedRfqs.find(r => r.id === neg.rfqId)
+      const sup = supplierData.find(s => s.id === (quote?.supplierId || neg.supplierId))
+      const unitPrice = quote?.unitPrice || 100
+      const quantity = rfq?.quantity || quote?.quantity || 1000
+      const expectedBudget = rfq?.expectedBudget || (unitPrice * quantity * 0.9)
+      const targetPrice = quantity > 0 ? Math.round(expectedBudget / quantity) : Math.round(unitPrice * 0.9)
+
+      return {
+        ...neg,
+        supplierName: sup?.name || quote?.supplierName || 'Selected Supplier',
+        component: rfq?.component || quote?.component || 'Required Component',
+        quantity: quantity,
+        originalPrice: unitPrice,
+        revisedPrice: unitPrice,
+        targetPrice: targetPrice,
+        currentOffer: unitPrice,
+        deliveryRequirement: quote?.deliveryTime || 14,
+        paymentTerms: quote?.paymentTerms || 'Net 30',
+        dealStatus: neg.status?.toLowerCase() === 'deal_agreed' ? 'agreed' : 'under_negotiation',
+        lastUpdated: neg.negotiationHistory?.length > 0 ? neg.negotiationHistory[neg.negotiationHistory.length - 1].timestamp : new Date().toLocaleDateString(),
+      }
+    })
+    setNegotiations(enrichedNegotiations)
     setPurchaseOrders((await listPurchaseOrders().catch(() => [])).map(normalizePurchaseOrder))
     const decisions = await Promise.all(rfqData.map(rfq => getDecision(rfq.id).catch(() => null)))
     setDecisionData(Object.fromEntries(decisions.filter(Boolean).map(item => [item.rfq_id, item])))
@@ -1421,7 +1489,12 @@ export const WorkflowProvider = ({ children }) => {
   }
 
   const sendRFQ = async (rfqId, supplierIds) => {
-    const result = await sendRfqRequest(rfqId, supplierIds)
+    let targetSupplierIds = supplierIds
+    if (!targetSupplierIds || !Array.isArray(targetSupplierIds) || targetSupplierIds.length === 0) {
+      const targetRfq = rfqs.find(item => item.id === rfqId)
+      targetSupplierIds = targetRfq?.supplierIds || targetRfq?.suppliers?.map(s => s.supplier_id || s) || []
+    }
+    const result = await sendRfqRequest(rfqId, targetSupplierIds)
     await refreshData()
     return result
   }

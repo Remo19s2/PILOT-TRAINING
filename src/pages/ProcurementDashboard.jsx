@@ -12,11 +12,11 @@ const ProcurementDashboard = () => {
   const { requirements, rfqs, quotations, negotiations, approvals } = useWorkflow()
 
   const newRequirements = requirements.filter(r => r.status === 'new')
-  const activeRFQs = rfqs.filter(r => r.status === 'rfq_sent' || r.status === 'rfq_viewed')
+  const activeRFQs = rfqs.filter(r => ['open', 'quotations_received', 'supplier_selected', 'draft', 'rfq_sent', 'rfq_viewed'].includes(r.status?.toLowerCase()))
   const quotationsReceived = quotations.filter(q => q.status === 'submitted')
-  const activeNegotiations = negotiations.filter(n => n.status === 'negotiation_active' || n.status === 'counter_offer_received')
-  const agreedDeals = negotiations.filter(n => n.dealStatus === 'agreed')
-  const pendingApprovals = approvals.filter(a => a.status === 'pending_finance_approval')
+  const activeNegotiations = negotiations.filter(n => ['open', 'awaiting_supplier', 'counter_offer_received', 'negotiation_active', 'authorized_pending_send'].includes(n.status?.toLowerCase()))
+  const agreedDeals = negotiations.filter(n => n.dealStatus === 'agreed' || n.status?.toLowerCase() === 'deal_agreed')
+  const pendingApprovals = approvals.filter(a => a.status === 'pending_finance_approval' || a.status === 'pending')
   const approvedOrders = approvals.filter(a => a.status === 'approved')
 
   const stats = [

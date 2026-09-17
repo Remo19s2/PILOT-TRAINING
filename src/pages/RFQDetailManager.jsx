@@ -7,15 +7,31 @@ import { Badge } from '../components/ui/Badge'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/Table'
 import StatusBadge from '../components/shared/StatusBadge'
 import WorkflowTracker from '../components/shared/WorkflowTracker'
-import { ArrowLeft, Clock, AlertTriangle, CheckCircle, Package, Calendar, DollarSign, Users, FileText } from 'lucide-react'
+import { ArrowLeft, Clock, AlertTriangle, CheckCircle, Package, Calendar, DollarSign, Users, FileText, Send } from 'lucide-react'
 
 const RFQDetailManager = () => {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { rfqs, quotations, suppliers } = useWorkflow()
+  const { rfqs, quotations, suppliers, sendRFQ } = useWorkflow()
   
   const rfq = rfqs.find(r => r.id === id)
   const [timeRemaining, setTimeRemaining] = useState({ text: '', status: 'default' })
+  const [isSending, setIsSending] = useState(false)
+
+  const handleSendRFQ = async () => {
+    if (!rfq) return
+    try {
+      setIsSending(true)
+      const supplierIds = rfq.supplierIds || rfq.suppliers?.map(s => s.supplier_id || s) || []
+      await sendRFQ(rfq.id, supplierIds)
+      alert('RFQ dispatched to suppliers successfully!')
+    } catch (err) {
+      console.error('Failed to send RFQ:', err)
+      alert('Failed to send RFQ: ' + (err.response?.data?.detail || err.message))
+    } finally {
+      setIsSending(false)
+    }
+  }
 
   if (!rfq) {
     return (
@@ -117,18 +133,62 @@ const RFQDetailManager = () => {
     navigate(`/supplier-comparison/${rfq.id}`)
   }
 
+  const isDraft = ['draft', 'rfq_created'].includes(rfq.status?.toLowerCase())
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="secondary" onClick={() => navigate(-1)}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold text-navy-900">RFQ Details</h1>
-          <p className="text-gray-600 mt-1">{rfq.id}</p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="secondary" onClick={() => navigate(-1)}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back
+          </Button>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold text-navy-900">RFQ Details</h1>
+              <StatusBadge status={rfq.status} />
+            </div>
+            <p className="text-gray-600 mt-1">{rfq.id} - {rfq.component}</p>
+          </div>
         </div>
+        {isDraft && (
+          <Button
+            onClick={handleSendRFQ}
+            disabled={isSending}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2 flex items-center gap-2 shadow"
+          >
+            <Send className="w-4 h-4" />
+            {isSending ? 'Sending...' : 'Send Draft to Suppliers'}
+          </Button>
+        )}
       </div>
+
+      {/* Draft Notification Banner */}
+      {isDraft && (
+        <Card className="border-2 border-blue-400 bg-blue-50/80 shadow-sm">
+          <CardHeader>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <CardTitle className="text-xl flex items-center gap-2 text-blue-950">
+                  <Send className="w-5 h-5 text-blue-600" />
+                  Draft RFQ — Ready for Supplier Dispatch
+                </CardTitle>
+                <CardDescription className="text-blue-900 mt-1">
+                  This RFQ is saved as a draft. Click below to dispatch it to assigned suppliers and begin receiving quotations.
+                </CardDescription>
+              </div>
+              <Button
+                onClick={handleSendRFQ}
+                disabled={isSending}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 shadow hover:shadow-md transition-all flex items-center gap-2 shrink-0"
+              >
+                <Send className="w-4 h-4" />
+                {isSending ? 'Dispatching RFQ...' : 'Send Draft to Suppliers Now'}
+              </Button>
+            </div>
+          </CardHeader>
+        </Card>
+      )}
 
       {/* Workflow Tracker with Deadline Status */}
       <WorkflowTracker 
@@ -336,6 +396,16 @@ const RFQDetailManager = () => {
           <CardTitle>Actions</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
+          {isDraft && (
+            <Button
+              onClick={handleSendRFQ}
+              disabled={isSending}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 flex items-center justify-center gap-2 shadow-md text-base"
+            >
+              <Send className="w-5 h-5" />
+              {isSending ? 'Sending RFQ to Suppliers...' : 'Send Draft to Suppliers'}
+            </Button>
+          )}
           <Button
             onClick={handleCompareQuotations}
             disabled={onTimeQuotations.length < 2}

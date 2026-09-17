@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 
 class UserOut(BaseModel):
@@ -50,7 +50,7 @@ class RfqCreate(BaseModel):
 
 
 class RfqSend(BaseModel):
-    supplier_ids: list[UUID] = Field(min_length=1)
+    supplier_ids: list[UUID] = Field(default_factory=list)
 
 
 class SupplierSelection(BaseModel):
@@ -79,6 +79,16 @@ class QuotationOut(QuotationCreate):
     supersedes_id: UUID | None = None
 
 
+class RfqSupplierOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID | None = None
+    supplier_id: UUID
+    response_status: str = "PENDING"
+    sent_at: datetime | None = None
+    viewed_at: datetime | None = None
+    responded_at: datetime | None = None
+
+
 class RfqOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
@@ -93,6 +103,12 @@ class RfqOut(BaseModel):
     created_at: datetime
     component: str | None = None
     quantity: int | None = None
+    suppliers: list[RfqSupplierOut] = Field(default_factory=list)
+
+    @computed_field
+    @property
+    def supplier_ids(self) -> list[UUID]:
+        return [s.supplier_id for s in self.suppliers]
 
 
 class ApprovalReject(BaseModel):
@@ -128,9 +144,13 @@ class ApprovalMessageOut(CommunicationMessageIn):
 
 
 EventType = Literal[
+    # Existing
     "SUPPLIER_DELAY", "SUPPLIER_QUALITY_ISSUE", "SUPPLIER_SHORTAGE", "SUPPLIER_CAPACITY_RISK",
     "SUPPLIER_PRICE_CHANGE", "INVENTORY_SHORTAGE", "PRODUCTION_DISRUPTION",
-    "SUPPLIER_PERFORMANCE_REVIEW", "RFQ_ANALYSIS", "NEGOTIATION_REQUEST", "PROCUREMENT_REQUEST", "OTHER",
+    "SUPPLIER_PERFORMANCE_REVIEW", "RFQ_ANALYSIS", "NEGOTIATION_REQUEST", "PROCUREMENT_REQUEST",
+    # New triggers
+    "RFQ_DEADLINE_REACHED", "SUPPLIER_MONITORING", "ALTERNATIVE_SUPPLIER_REQUEST", "SUPPLIER_RISK_REVIEW",
+    "OTHER",
 ]
 
 

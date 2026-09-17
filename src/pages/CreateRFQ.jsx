@@ -4,7 +4,7 @@ import { useWorkflow } from '../context/WorkflowContext'
 import {
   Send, ArrowLeft, Clock, AlertTriangle, Star, Check, ChevronDown, ChevronUp,
   Shield, Truck, Award, BarChart2, Info, CheckCircle, XCircle, ArrowRight,
-  Filter, SortAsc, TrendingUp, Zap, Eye, RefreshCw, Package
+  Filter, SortAsc, TrendingUp, Zap, Eye, RefreshCw, Package, FileText
 } from 'lucide-react'
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -204,23 +204,58 @@ const CreateRFQ = () => {
     }
   }
 
-  const handleConfirmSend = () => {
+  const handleSaveDraft = async () => {
+    if (!formData.component || !formData.quantity) {
+      alert('Please fill in at least the Component name and Quantity to save a draft.')
+      return
+    }
+    try {
+      setIsCreating(true)
+      const rfqData = {
+        ...formData,
+        quantity: parseInt(formData.quantity) || 0,
+        expectedBudget: parseInt(formData.expectedBudget) || 0,
+        deliveryDeadline: formData.deliveryDeadline || new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
+        quotationDeadline: formData.quotationDeadlineDate
+          ? `${formData.quotationDeadlineDate} ${formData.quotationDeadlineTime || '17:00'}`
+          : new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0] + ' 17:00',
+        selectedSuppliers: selectedSuppliers.length > 0 ? selectedSuppliers : suppliers.map(s => s.id),
+      }
+      const newRFQ = await createRFQ(rfqData)
+      navigate('/rfqs', { state: { success: true, message: `RFQ draft ${newRFQ?.id || ''} saved successfully. You can send it to suppliers anytime.` } })
+    } catch (err) {
+      console.error('Failed to save RFQ draft:', err)
+      alert('Failed to save draft: ' + (err.response?.data?.detail || err.message))
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
+  const handleConfirmSend = async () => {
     if (!formData.quotationDeadlineDate) {
       alert('Please set the Quotation Submission Deadline.')
       return
     }
-    setIsCreating(true)
-    const rfqData = {
-      ...formData,
-      quantity: parseInt(formData.quantity) || 0,
-      expectedBudget: parseInt(formData.expectedBudget) || 0,
-      quotationDeadline: `${formData.quotationDeadlineDate} ${formData.quotationDeadlineTime}`,
-      selectedSuppliers,
+    try {
+      setIsCreating(true)
+      const rfqData = {
+        ...formData,
+        quantity: parseInt(formData.quantity) || 0,
+        expectedBudget: parseInt(formData.expectedBudget) || 0,
+        quotationDeadline: `${formData.quotationDeadlineDate} ${formData.quotationDeadlineTime}`,
+        selectedSuppliers,
+      }
+      const newRFQ = await createRFQ(rfqData)
+      if (newRFQ?.id) {
+        await sendRFQ(newRFQ.id, selectedSuppliers)
+      }
+      navigate('/rfqs', { state: { success: true, rfqId: newRFQ?.id } })
+    } catch (err) {
+      console.error('Failed to create and send RFQ:', err)
+      alert('Failed to send RFQ: ' + (err.response?.data?.detail || err.message))
+    } finally {
+      setIsCreating(false)
     }
-    const newRFQ = createRFQ(rfqData)
-    sendRFQ(newRFQ.id, selectedSuppliers)
-    setIsCreating(false)
-    navigate('/rfqs', { state: { success: true, rfqId: newRFQ.id } })
   }
 
   // ── Compare table ──────────────────────────────────────────────────────────
@@ -444,7 +479,16 @@ const CreateRFQ = () => {
                 </div>
               </div>
 
-              <div className="flex justify-end">
+              <div className="flex justify-between items-center">
+                <button
+                  type="button"
+                  onClick={handleSaveDraft}
+                  disabled={isCreating || !formData.component || !formData.quantity}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-gray-100 text-gray-700 text-sm font-semibold rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <FileText className="w-4 h-4" />
+                  Save as Draft
+                </button>
                 <button
                   onClick={handleNextStep}
                   className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
@@ -915,7 +959,16 @@ const CreateRFQ = () => {
                     : `RFQ will be sent to: ${enrichedSuppliers.filter(s => selectedSuppliers.includes(s.id)).map(s => s.name).join(', ')}`}
                 </p>
               </div>
-              <div className="flex gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleSaveDraft}
+                  disabled={isCreating}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  <FileText className="w-4 h-4" />
+                  Save as Draft
+                </button>
                 <button
                   onClick={() => setStep(1)}
                   className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
@@ -1094,7 +1147,16 @@ const CreateRFQ = () => {
                   )}
                 >
                   <Send className="w-4 h-4" />
-                  {isCreating ? 'Creating RFQ...' : 'Create & Send RFQ'}
+                  {isCreating ? 'Sending to Suppliers...' : 'Send Draft to Suppliers'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveDraft}
+                  disabled={isCreating}
+                  className="w-full mt-2 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold text-gray-700 bg-gray-100 border border-gray-200 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  <FileText className="w-4 h-4" />
+                  Save as Draft Only
                 </button>
                 <button
                   onClick={() => setStep(2)}

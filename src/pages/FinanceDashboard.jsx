@@ -7,7 +7,7 @@ const FinanceDashboard = () => {
   const navigate = useNavigate()
   const { approvals } = useWorkflow()
 
-  const pendingApprovals = approvals.filter(a => a.status === 'pending_finance_approval')
+  const pendingApprovals = approvals.filter(a => a.status === 'pending_finance_approval' || a.status === 'pending')
   const approvedRequests = approvals.filter(a => a.status === 'approved')
   const rejectedRequests = approvals.filter(a => a.status === 'rejected')
   const totalApprovalValue = approvedRequests.reduce((sum, a) => sum + (a.totalPrice || 0), 0)
@@ -84,11 +84,11 @@ const FinanceDashboard = () => {
                     <p className="text-sm text-gray-600">{approval.supplierName} • ₹{approval.totalPrice?.toLocaleString()}</p>
                   </div>
                   <span className={`text-xs px-2 py-1 rounded ${
-                    approval.status === 'pending_finance_approval' ? 'bg-warning-100 text-warning-700' :
+                    (approval.status === 'pending_finance_approval' || approval.status === 'pending') ? 'bg-warning-100 text-warning-700' :
                     approval.status === 'approved' ? 'bg-success-100 text-success-700' :
                     'bg-danger-100 text-danger-700'
                   }`}>
-                    {approval.status === 'pending_finance_approval' ? 'Pending' :
+                    {(approval.status === 'pending_finance_approval' || approval.status === 'pending') ? 'Pending' :
                      approval.status === 'approved' ? 'Approved' : 'Rejected'}
                   </span>
                 </div>

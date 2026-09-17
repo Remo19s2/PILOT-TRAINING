@@ -1,19 +1,64 @@
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useWorkflow } from '../context/WorkflowContext'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
-import { ArrowLeft, Calendar, AlertTriangle, CheckCircle, Info } from 'lucide-react'
+import { ArrowLeft, Calendar, AlertTriangle, CheckCircle, Info, Loader2 } from 'lucide-react'
 import RiskBadge from '../components/shared/RiskBadge'
 import RiskScoreCard from '../components/shared/RiskScoreCard'
 import HistoricalPerformanceCard from '../components/shared/HistoricalPerformanceCard'
 import RiskBreakdownChart from '../components/shared/RiskBreakdownChart'
 import RiskTrendChart from '../components/shared/RiskTrendChart'
 import RiskExplanationPanel from '../components/shared/RiskExplanationPanel'
+import { triggerSupplierRiskReview, triggerAlternativeSupplierRequest } from '../api/events'
 
 const SupplierRiskAnalysis = () => {
   const { supplierId } = useParams()
   const navigate = useNavigate()
   const { suppliers, getSupplierRiskData } = useWorkflow()
+  const [sending, setSending] = useState(null)
+  const [toast, setToast] = useState(null)
+
+  const showToast = (msg, ok = true) => {
+    setToast({ msg, ok })
+    setTimeout(() => setToast(null), 4000)
+  }
+
+  const handleRiskReview = async () => {
+    setSending('risk')
+    try {
+      await triggerSupplierRiskReview({
+        supplier_id:  supplier.id,
+        component_id: null,
+        reason:       `Risk review triggered from SupplierRiskAnalysis — overall score: ${riskData.overallScore}`,
+        priority:     riskData.overallScore >= 70 ? 'CRITICAL' : riskData.overallScore >= 50 ? 'HIGH' : 'MEDIUM',
+      })
+      showToast(`✅ Risk Review sent to n8n for ${supplier.name}`, true)
+    } catch (err) {
+      showToast(`❌ Failed: ${err.message}`, false)
+    } finally {
+      setSending(null)
+    }
+  }
+
+  const handleAlternativeSupplier = async () => {
+    setSending('alt')
+    try {
+      await triggerAlternativeSupplierRequest({
+        component_id:           null,
+        required_quantity:      null,
+        required_delivery_date: null,
+        reason:                 `Alternative supplier requested for ${supplier.name} — highest risk: ${highestRisk.label || 'unknown'}`,
+        priority:               'HIGH',
+      })
+      showToast(`✅ Alternative Supplier Request sent to n8n`, true)
+    } catch (err) {
+      showToast(`❌ Failed: ${err.message}`, false)
+    } finally {
+      setSending(null)
+    }
+  }
+
 
   const supplier = suppliers.find(s => s.id === supplierId)
   const riskData = getSupplierRiskData(supplierId)
@@ -35,6 +80,13 @@ const SupplierRiskAnalysis = () => {
 
   return (
     <div className="space-y-6">
+      {/* Toast */}
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 px-5 py-3 rounded-lg shadow-lg text-white text-sm font-medium ${toast.ok ? 'bg-green-600' : 'bg-red-600'}`}>
+          {toast.msg}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -49,12 +101,22 @@ const SupplierRiskAnalysis = () => {
           <h1 className="text-3xl font-bold text-gray-900">Supplier Risk Analysis</h1>
           <p className="text-gray-600 mt-2">{supplier.name}</p>
         </div>
-        <div className="text-right">
+        <div className="text-right space-y-2">
           <p className="text-sm text-gray-500">Supplier ID: {supplier.id}</p>
           <p className="text-sm text-gray-500 flex items-center justify-end gap-1 mt-1">
             <Calendar className="w-4 h-4" />
             Last Analysis: {riskData.lastAnalysisDate}
           </p>
+          <div className="flex gap-2 justify-end mt-3">
+            <Button size="sm" variant="secondary" disabled={sending === 'risk'} onClick={handleRiskReview}>
+              {sending === 'risk' ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <AlertTriangle className="w-4 h-4 mr-1" />}
+              {sending === 'risk' ? 'Sending...' : 'Risk Review'}
+            </Button>
+            <Button size="sm" disabled={sending === 'alt'} onClick={handleAlternativeSupplier}>
+              {sending === 'alt' ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <CheckCircle className="w-4 h-4 mr-1" />}
+              {sending === 'alt' ? 'Sending...' : 'Alt. Supplier'}
+            </Button>
+          </div>
         </div>
       </div>
 

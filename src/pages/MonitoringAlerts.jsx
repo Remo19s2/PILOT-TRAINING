@@ -5,13 +5,66 @@ import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Select } from '../components/ui/Select'
 import { Progress } from '../components/ui/Progress'
-import { Bell, AlertTriangle, CheckCircle, Clock, Truck, Package, Users, Activity, Search, Filter, RefreshCw, Zap, Eye, XCircle } from 'lucide-react'
+import { Bell, AlertTriangle, CheckCircle, Clock, Truck, Package, Users, Activity, Search, Filter, RefreshCw, Zap, Eye, XCircle, Loader2 } from 'lucide-react'
+import { fireMonitoringEvent, fireEvent } from '../api/events'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, AreaChart, Area } from 'recharts'
 
 const MonitoringAlerts = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [severityFilter, setSeverityFilter] = useState('all')
   const [typeFilter, setTypeFilter] = useState('all')
+  const [sendingId, setSendingId] = useState(null)
+  const [toast, setToast] = useState(null)
+
+  const showToast = (msg, ok = true) => {
+    setToast({ msg, ok })
+    setTimeout(() => setToast(null), 4000)
+  }
+
+  /** Map alert type → API event_type */
+  const alertTypeToEvent = {
+    delivery_delay:        'SUPPLIER_DELAY',
+    inventory_shortage:    'INVENTORY_SHORTAGE',
+    supplier_performance:  'SUPPLIER_PERFORMANCE_REVIEW',
+    shipment_disruption:   'PRODUCTION_DISRUPTION',
+    price_increase:        'SUPPLIER_PRICE_CHANGE',
+    supplier_risk:         'SUPPLIER_CAPACITY_RISK',
+  }
+
+  const handleTriggerAlert = async (alert) => {
+    const eventType = alertTypeToEvent[alert.type] || 'OTHER'
+    const priority = alert.severity === 'critical' ? 'CRITICAL' : alert.severity === 'high' ? 'HIGH' : 'MEDIUM'
+    setSendingId(alert.id)
+    try {
+      await fireMonitoringEvent(eventType, priority, {}, {
+        alert_id: alert.id,
+        alert_title: alert.title,
+        description: alert.description,
+        entity: alert.entity,
+        supplier: alert.supplier,
+        impact: alert.impact,
+        suggested_action: alert.suggestedAction,
+      })
+      showToast(`✅ Event sent to n8n: ${alert.title}`, true)
+    } catch (err) {
+      showToast(`❌ Failed to send event: ${err.message}`, false)
+    } finally {
+      setSendingId(null)
+    }
+  }
+
+  const handleTriggerReAnalysis = async () => {
+    setSendingId('reanalysis')
+    try {
+      await fireEvent('OTHER', 'HIGH', {}, { trigger: 'manual_reanalysis', source_page: 'MonitoringAlerts' })
+      showToast('✅ Re-analysis triggered — n8n workflow started', true)
+    } catch (err) {
+      showToast(`❌ Failed: ${err.message}`, false)
+    } finally {
+      setSendingId(null)
+    }
+  }
+
 
   // Monitoring & Alert Agent Data
   const alerts = [
@@ -164,6 +217,13 @@ const MonitoringAlerts = () => {
 
   return (
     <div className="space-y-6">
+      {/* Toast Notification */}
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 px-5 py-3 rounded-lg shadow-lg text-white text-sm font-medium transition-all ${toast.ok ? 'bg-green-600' : 'bg-red-600'}`}>
+          {toast.msg}
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-navy-900">Monitoring & Alerts</h1>
@@ -174,12 +234,16 @@ const MonitoringAlerts = () => {
             <RefreshCw className="w-4 h-4 mr-2" />
             Refresh
           </Button>
-          <Button>
-            <Zap className="w-4 h-4 mr-2" />
-            Trigger Re-Analysis
+          <Button onClick={handleTriggerReAnalysis} disabled={sendingId === 'reanalysis'}>
+            {sendingId === 'reanalysis'
+              ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              : <Zap className="w-4 h-4 mr-2" />
+            }
+            {sendingId === 'reanalysis' ? 'Sending...' : 'Trigger Re-Analysis'}
           </Button>
         </div>
       </div>
+
 
       {/* Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -400,8 +464,16 @@ const MonitoringAlerts = () => {
                       View Details
                     </Button>
                     {alert.actionRequired && (
-                      <Button variant="secondary" size="sm">
-                        Take Action
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={sendingId === alert.id}
+                        onClick={() => handleTriggerAlert(alert)}
+                      >
+                        {sendingId === alert.id
+                          ? <><Loader2 className="w-4 h-4 mr-1 animate-spin" />Sending...</>
+                          : 'Take Action'
+                        }
                       </Button>
                     )}
                   </div>

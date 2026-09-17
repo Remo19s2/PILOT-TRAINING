@@ -7,7 +7,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from .audit import record_audit
 from .config import get_settings
@@ -130,7 +130,11 @@ def create_workflow_event(payload: ProcurementEventIn, db: DbSession, user: User
 
 @app.post("/api/monitoring/events", response_model=WorkflowExecutionOut, status_code=status.HTTP_202_ACCEPTED)
 def create_monitoring_event(payload: ProcurementEventIn, db: DbSession, user: User = Depends(current_user)) -> WorkflowExecutionOut:
-    if payload.event_type not in {"SUPPLIER_DELAY", "SUPPLIER_QUALITY_ISSUE", "SUPPLIER_SHORTAGE", "SUPPLIER_CAPACITY_RISK", "SUPPLIER_PRICE_CHANGE", "PRODUCTION_DISRUPTION", "OTHER"}:
+    if payload.event_type not in {
+        "SUPPLIER_DELAY", "SUPPLIER_QUALITY_ISSUE", "SUPPLIER_SHORTAGE", "SUPPLIER_CAPACITY_RISK",
+        "SUPPLIER_PRICE_CHANGE", "PRODUCTION_DISRUPTION", "SUPPLIER_MONITORING",
+        "SUPPLIER_RISK_REVIEW", "INVENTORY_SHORTAGE", "OTHER",
+    }:
         raise HTTPException(status_code=422, detail="Event type is not valid for monitoring")
     return create_workflow_event(payload, db, user)
 
@@ -265,10 +269,28 @@ def create_rfq(payload: RfqCreate, db: DbSession, user: User = Depends(require_r
 
 @app.get("/api/rfqs", response_model=list[RfqOut])
 def list_rfqs(db: DbSession, user: User = Depends(current_user)) -> list[dict]:
-    query = select(Rfq).order_by(Rfq.created_at.desc())
+    query = select(Rfq).options(selectinload(Rfq.suppliers), selectinload(Rfq.items)).order_by(Rfq.created_at.desc())
     if user.role.name == "SUPPLIER":
         query = query.join(RfqSupplier).where(RfqSupplier.supplier_id == user.supplier_id)
-    return [{**RfqOut.model_validate(rfq).model_dump(), "component": rfq.items[0].description if rfq.items else None, "quantity": rfq.items[0].quantity if rfq.items else None} for rfq in db.scalars(query).unique()]
+    return [
+        {
+            **RfqOut.model_validate(rfq).model_dump(),
+            "component": rfq.items[0].description if rfq.items else None,
+            "quantity": rfq.items[0].quantity if rfq.items else None,
+            "supplier_ids": [s.supplier_id for s in rfq.suppliers],
+            "suppliers": [
+                {
+                    "supplier_id": str(s.supplier_id),
+                    "response_status": s.response_status,
+                    "sent_at": s.sent_at.isoformat() if s.sent_at else None,
+                    "viewed_at": s.viewed_at.isoformat() if s.viewed_at else None,
+                    "responded_at": s.responded_at.isoformat() if s.responded_at else None,
+                }
+                for s in rfq.suppliers
+            ],
+        }
+        for rfq in db.scalars(query).unique()
+    ]
 
 
 @app.get("/api/rfqs/{rfq_id}")
@@ -283,14 +305,14 @@ def get_rfq(rfq_id: UUID, db: DbSession, user: User = Depends(current_user)) -> 
 
 
 @app.post("/api/rfqs/{rfq_id}/send", response_model=RfqOut)
-def send_rfq(rfq_id: UUID, payload: RfqSend, db: DbSession, user: User = Depends(require_roles("PROCUREMENT_MANAGER"))) -> Rfq:
+def send_rfq(rfq_id: UUID, payload: RfqSend, db: DbSession, user: User = Depends(require_roles("PROCUREMENT_MANAGER"))) -> dict:
     rfq = db.scalar(select(Rfq).where(Rfq.id == rfq_id).with_for_update())
     if not rfq:
         raise HTTPException(status_code=404, detail="RFQ not found")
     if rfq.status not in {"DRAFT", "OPEN"}:
         raise HTTPException(status_code=409, detail=f"RFQ cannot be sent from {rfq.status}")
-    requested = set(payload.supplier_ids)
     invited = {item.supplier_id for item in rfq.suppliers}
+    requested = set(payload.supplier_ids) if payload.supplier_ids else invited
     if not requested or not requested.issubset(invited):
         raise HTTPException(status_code=422, detail="All recipients must be assigned to the RFQ")
     now = datetime.now(timezone.utc)
@@ -301,10 +323,25 @@ def send_rfq(rfq_id: UUID, payload: RfqSend, db: DbSession, user: User = Depends
             notify_supplier(db, item.supplier_id, "RFQ_SENT", "New RFQ available", "A new request for quotation is ready for your response.", rfq_id=rfq.id)
     rfq.status = "OPEN"
     rfq.release_date = now
-    record_audit(db, user, "RFQ_SENT", "RFQ", rfq.id, new_values={"status": rfq.status, "supplier_ids": list(requested)})
+    record_audit(db, user, "RFQ_SENT", "RFQ", rfq.id, new_values={"status": rfq.status, "supplier_ids": [str(sid) for sid in requested]})
     db.commit()
     db.refresh(rfq)
-    return rfq
+    return {
+        **RfqOut.model_validate(rfq).model_dump(),
+        "component": rfq.items[0].description if rfq.items else None,
+        "quantity": rfq.items[0].quantity if rfq.items else None,
+        "supplier_ids": [s.supplier_id for s in rfq.suppliers],
+        "suppliers": [
+            {
+                "supplier_id": str(s.supplier_id),
+                "response_status": s.response_status,
+                "sent_at": s.sent_at.isoformat() if s.sent_at else None,
+                "viewed_at": s.viewed_at.isoformat() if s.viewed_at else None,
+                "responded_at": s.responded_at.isoformat() if s.responded_at else None,
+            }
+            for s in rfq.suppliers
+        ],
+    }
 
 
 @app.get("/api/rfqs/{rfq_id}/responses")
@@ -354,7 +391,7 @@ def rfq_quotations(rfq_id: UUID, db: DbSession, user: User = Depends(current_use
         raise HTTPException(status_code=404, detail="RFQ not found")
     query = select(Quotation).where(Quotation.rfq_id == rfq_id, Quotation.status != "SUPERSEDED")
     if user.role.name == "SUPPLIER": query = query.where(Quotation.supplier_id == user.supplier_id)
-    return list(db.scalars(query).order_by(Quotation.submitted_at.desc()))
+    return list(db.scalars(query.order_by(Quotation.submitted_at.desc())))
 
 
 @app.get("/api/quotations/{quotation_id}", response_model=QuotationOut)
