@@ -29,6 +29,7 @@ const PlanningInventory = () => {
       await Promise.all(criticalItems.map(item =>
         triggerInventoryShortage({
           component_id:      item.componentId,
+          component_name:    item.componentName,
           current_inventory: item.availableInventory,
           required_quantity: item.requiredQuantity,
           shortage_quantity: item.shortageQuantity,
@@ -49,6 +50,7 @@ const PlanningInventory = () => {
     try {
       await triggerInventoryShortage({
         component_id:      item.componentId,
+        component_name:    item.componentName,
         current_inventory: item.availableInventory,
         required_quantity: item.requiredQuantity,
         shortage_quantity: item.shortageQuantity,

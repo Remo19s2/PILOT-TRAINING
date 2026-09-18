@@ -6,13 +6,63 @@ import { Button } from '../components/ui/Button'
 import { Input } from '../components/ui/Input'
 import { Select } from '../components/ui/Select'
 import StatusBadge from '../components/shared/StatusBadge'
-import { Package, Search, Filter } from 'lucide-react'
+import { Package, Search, Filter, Brain, Sparkles, Loader2, CheckCircle, AlertTriangle } from 'lucide-react'
+import { triggerInventoryShortage, triggerInventoryPlanningAnalysis } from '../api/events'
 
 const PlanningInsights = () => {
   const navigate = useNavigate()
   const { requirements, updateRequirementStatus } = useWorkflow()
   const [searchTerm, setSearchTerm] = useState('')
   const [priorityFilter, setPriorityFilter] = useState('all')
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [sendingId, setSendingId] = useState(null)
+  const [notification, setNotification] = useState(null)
+
+  const showNotification = (msg, isError = false) => {
+    setNotification({ msg, isError })
+    setTimeout(() => setNotification(null), 5000)
+  }
+
+  const handleRunAIAnalysis = async () => {
+    setIsAnalyzing(true)
+    try {
+      const itemsToTrigger = requirements.filter(r => priorityFilter === 'all' ? true : r.priority === priorityFilter)
+      if (itemsToTrigger.length === 0) {
+        showNotification('No inventory requirements found matching the current filter.', true)
+        return
+      }
+      // Dispatch a single consolidated workflow event instead of parallel multi-event triggers
+      await triggerInventoryPlanningAnalysis({
+        items: itemsToTrigger,
+        priority: itemsToTrigger.some(i => i.priority === 'critical') ? 'CRITICAL' : 'HIGH',
+      })
+      showNotification(`✅ Inventory planning analysis triggered for ${itemsToTrigger.length} component(s)! Master Agent workflow started.`)
+    } catch (err) {
+      showNotification(`❌ Failed to trigger workflow: ${err.message}`, true)
+    } finally {
+      setIsAnalyzing(false)
+    }
+  }
+
+  const handleReportShortage = async (requirement) => {
+    setSendingId(requirement.id)
+    try {
+      await triggerInventoryShortage({
+        component_id:      requirement.id,
+        component_name:    requirement.componentName,
+        current_inventory: requirement.currentInventory,
+        required_quantity: requirement.requiredQuantity,
+        shortage_quantity: requirement.shortageQuantity,
+        required_date:     requirement.requiredDeliveryDate,
+        priority:          requirement.priority === 'critical' ? 'CRITICAL' : requirement.priority === 'high' ? 'HIGH' : 'MEDIUM',
+      })
+      showNotification(`✅ Shortage workflow triggered for ${requirement.componentName}! Sent to SNS Workbench.`)
+    } catch (err) {
+      showNotification(`❌ Failed to trigger workflow: ${err.message}`, true)
+    } finally {
+      setSendingId(null)
+    }
+  }
 
   const filteredRequirements = requirements.filter(req => {
     const matchesSearch = req.componentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -29,10 +79,44 @@ const PlanningInsights = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-navy-900">Planning & Inventory Insights</h1>
-        <p className="text-gray-600 mt-1">Review procurement requirements generated from inventory analysis</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-navy-900">Planning & Inventory Insights</h1>
+          <p className="text-gray-600 mt-1">Review procurement requirements generated from inventory analysis</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={handleRunAIAnalysis}
+            disabled={isAnalyzing}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold flex items-center gap-2 shadow-sm"
+          >
+            {isAnalyzing ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Triggering AI Workflow...
+              </>
+            ) : (
+              <>
+                <Brain className="w-4 h-4" />
+                Trigger Inventory AI Workflow
+              </>
+            )}
+          </Button>
+        </div>
       </div>
+
+      {/* Notification Banner */}
+      {notification && (
+        <div className={`p-3.5 rounded-xl border flex items-center justify-between shadow-xs ${
+          notification.isError ? 'bg-red-50 border-red-200 text-red-800' : 'bg-emerald-50 border-emerald-200 text-emerald-800'
+        }`}>
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            {notification.isError ? <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" /> : <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />}
+            <span>{notification.msg}</span>
+          </div>
+          <button onClick={() => setNotification(null)} className="text-xs underline ml-4 hover:opacity-80">Dismiss</button>
+        </div>
+      )}
 
       {/* Filters */}
       <Card>
@@ -120,9 +204,25 @@ const PlanningInsights = () => {
 
               <div className="flex gap-2 pt-2">
                 {requirement.status === 'new' && (
-                  <Button variant="primary" size="sm" className="flex-1" onClick={() => handleProceedToRFQ(requirement)}>
-                    Create RFQ
-                  </Button>
+                  <>
+                    <Button variant="primary" size="sm" className="flex-1 font-semibold" onClick={() => handleProceedToRFQ(requirement)}>
+                      Create RFQ
+                    </Button>
+                    <Button 
+                      variant="secondary" 
+                      size="sm" 
+                      disabled={sendingId === requirement.id}
+                      className="flex-1 border-indigo-200 text-indigo-700 hover:bg-indigo-50 font-semibold flex items-center justify-center gap-1.5" 
+                      onClick={() => handleReportShortage(requirement)}
+                    >
+                      {sendingId === requirement.id ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                      )}
+                      Trigger Workflow
+                    </Button>
+                  </>
                 )}
               </div>
             </CardContent>

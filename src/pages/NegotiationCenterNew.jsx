@@ -303,17 +303,7 @@ const NegotiationCenterNew = () => {
     const terms = selectedNegotiation.paymentTerms || 'Net 30'
     const rationale = `Based on volume assurance (${selectedNegotiation.quantity || 1000} units) and standard ${terms} terms, we propose an optimized rate of ₹${proposedPrice}/unit.`
 
-    // 1. Populate the counter-offer form immediately
-    setShowOfferForm(true)
-    setOfferData({
-      proposedPrice: proposedPrice,
-      quantity: (selectedNegotiation.quantity || 1000).toString(),
-      delivery: delivery,
-      terms: terms,
-      message: rationale
-    })
-
-    // 2. Trigger the workflow to deliver negotiation details to the webhook
+    // 1. Trigger the workflow to deliver negotiation details to SNS Workbench first
     try {
       await triggerNegotiationRequest({
         rfq_id:               selectedNegotiation.rfqId || selectedNegotiation.rfq_id || null,
@@ -332,16 +322,26 @@ const NegotiationCenterNew = () => {
         ai_strategy:          selectedNegotiation.aiStrategy
       })
 
+      // 2. Open and pre-populate the counter-offer draft form for procurement review
+      setShowOfferForm(true)
+      setOfferData({
+        proposedPrice: proposedPrice,
+        quantity: (selectedNegotiation.quantity || 1000).toString(),
+        delivery: delivery,
+        terms: terms,
+        message: rationale
+      })
+
       setNotification({
         type: 'success',
-        message: `✅ AI Negotiation workflow triggered for ${selectedNegotiation.supplierName}! Details delivered to webhook.`
+        message: `✅ AI Negotiation workflow dispatched to Master Agent & SNS Workbench! Draft proposal prepared for review.`
       })
       setTimeout(() => setNotification(null), 5000)
     } catch (err) {
       console.warn('AI negotiation workflow trigger:', err)
       setNotification({
-        type: 'info',
-        message: `AI Proposal applied to form (Workflow status: ${err.message || 'Queued'})`
+        type: 'error',
+        message: `❌ Failed to dispatch workflow: ${err.message}`
       })
       setTimeout(() => setNotification(null), 5000)
     } finally {

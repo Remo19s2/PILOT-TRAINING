@@ -1,0 +1,2132 @@
+{
+  "id": "0d634c62-de53-4d23-8ee1-7c1a4002d645",
+  "name": "Negotiation Workflow",
+  "nodes": [
+    {
+      "id": "executeSubWorkflowTrigger-1788674470236009",
+      "data": {
+        "label": "Sub-workflow Trigger",
+        "inputs": {
+          "inputSource": "passthrough",
+          "attemptToConvertTypes": false
+        },
+        "toolId": "executeSubWorkflowTrigger",
+        "toolData": {
+          "id": "executeSubWorkflowTrigger",
+          "displayName": "Sub-workflow Trigger",
+          "category": "Input /  Output",
+          "icon": "call_received",
+          "description": "Trigger when executed by another workflow",
+          "inputSchemaJSON": {
+            "type": "object",
+            "properties": {
+              "inputSource": {
+                "type": "string",
+                "enum": [
+                  "defineUsingFields",
+                  "defineUsingJson",
+                  "passthrough"
+                ],
+                "default": "passthrough",
+                "description": "How to define the expected input data"
+              },
+              "workflowInputSchema": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "description": "Field name"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "String",
+                        "Number",
+                        "Boolean",
+                        "Object",
+                        "Array"
+                      ],
+                      "default": "String",
+                      "description": "Field data type"
+                    }
+                  },
+                  "required": [
+                    "name"
+                  ],
+                  "additionalProperties": false
+                },
+                "description": "List of input field definitions with name and type"
+              },
+              "jsonExample": {
+                "type": "string",
+                "description": "Example JSON object to infer fields and their types"
+              },
+              "attemptToConvertTypes": {
+                "type": "boolean",
+                "default": false,
+                "description": "Whether to attempt to convert values to the expected type instead of failing"
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        "isTrigger": true,
+        "connectedHandles": [],
+        "isPrimaryTrigger": false
+      },
+      "type": "manual-trigger",
+      "width": 220,
+      "height": 99,
+      "dragging": false,
+      "position": {
+        "x": -595.2731832941764,
+        "y": 257.4468930719048
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": -595.2731832941764,
+        "y": 257.4468930719048
+      }
+    },
+    {
+      "id": "postgres.executeQuery-1789500774482005",
+      "data": {
+        "label": "Negotiation Context",
+        "inputs": {
+          "query": "SELECT\r\n    n.id AS negotiation_id,\r\n    n.rfq_id,\r\n    n.quotation_id,\r\n    n.supplier_id,\r\n    n.status AS negotiation_status,\r\n\r\n    s.supplier_code,\r\n    s.supplier_name,\r\n    s.contact_name,\r\n    s.email,\r\n    s.supplier_status,\r\n\r\n    q.version AS quotation_version,\r\n    q.unit_price,\r\n    q.total_price,\r\n    q.quantity,\r\n    q.available_quantity,\r\n    q.delivery_at,\r\n    q.payment_terms,\r\n    q.warranty_quality,\r\n    q.additional_notes,\r\n    q.status AS quotation_status,\r\n\r\n    r.status AS rfq_status,\r\n    r.quotation_deadline,\r\n    r.required_delivery_date,\r\n    r.evaluation_policy,\r\n    r.expected_supplier_count,\r\n    r.minimum_valid_quotation_count,\r\n\r\n    r.created_at AS rfq_created_at,\r\n    n.created_at AS negotiation_created_at\r\n\r\nFROM public.negotiations n\r\n\r\nJOIN public.suppliers s\r\n    ON s.supplier_id = n.supplier_id\r\n\r\nJOIN public.quotations q\r\n    ON q.id = n.quotation_id\r\n\r\nJOIN public.rfqs r\r\n    ON r.id = n.rfq_id\r\n\r\nWHERE n.status = 'OPEN'\r\n\r\nORDER BY n.created_at DESC\r\nLIMIT 100;",
+          "schema": "public",
+          "tableMode": "list",
+          "schemaMode": "list",
+          "columnsMode": "manually",
+          "idleTimeout": 0,
+          "credentialId": "bbbdb332-ae79-4355-9eaf-0f53c59954dd",
+          "queryBatching": "single",
+          "queryParameters": [],
+          "outputLargeNumbersAsText": false,
+          "replaceEmptyStringsWithNull": false
+        },
+        "toolId": "postgres.executeQuery",
+        "toolData": {
+          "id": "postgres.executeQuery",
+          "displayName": "Execute Query",
+          "category": "Memory & State",
+          "provider": "postgres",
+          "operation": "executeQuery",
+          "icon": "Database",
+          "description": "Execute a raw SQL query",
+          "inputSchemaJSON": {
+            "type": "object",
+            "properties": {
+              "credentialId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "queryTimeout": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "description": "Connection timeout in seconds"
+              },
+              "idleTimeout": {
+                "type": "integer",
+                "minimum": 0,
+                "default": 0,
+                "description": "Delay closing idle connection in seconds"
+              },
+              "replaceEmptyStringsWithNull": {
+                "type": "boolean",
+                "default": false,
+                "description": "Replace empty string values with NULL"
+              },
+              "outputLargeNumbersAsText": {
+                "type": "boolean",
+                "default": false,
+                "description": "Output BIGINT/NUMERIC as text"
+              },
+              "queryBatching": {
+                "type": "string",
+                "enum": [
+                  "single",
+                  "independently",
+                  "transaction"
+                ],
+                "default": "single",
+                "description": "Query Batching"
+              },
+              "query": {
+                "type": "string",
+                "description": "SQL query to execute"
+              },
+              "queryParameters": {
+                "type": "array",
+                "default": [],
+                "description": "Parameters for prepared statements"
+              }
+            },
+            "required": [
+              "credentialId",
+              "query"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "executionMode": "batch"
+        },
+        "isTrigger": false,
+        "connectedHandles": [],
+        "isPrimaryTrigger": false
+      },
+      "type": "action",
+      "width": 220,
+      "height": 94,
+      "dragging": false,
+      "position": {
+        "x": -303.7973977530538,
+        "y": -2.7297609095584505
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": -303.7973977530538,
+        "y": -2.7297609095584505
+      }
+    },
+    {
+      "id": "postgres.executeQuery-1789500776136006",
+      "data": {
+        "label": "Supplier History",
+        "inputs": {
+          "query": "WITH target_supplier AS (\r\n    SELECT COALESCE(\r\n        NULLIF(NULLIF('{{$json.event_context.source.supplier_id}}', 'null'), '')::uuid,\r\n        (\r\n            SELECT i.supplier_id\r\n            FROM incoming_supply i\r\n            JOIN components c\r\n              ON c.component_id = i.component_id\r\n            WHERE c.component_code = '{{$json.event_context.context.component_code}}'\r\n              AND i.supplier_id IS NOT NULL\r\n            ORDER BY i.updated_at DESC\r\n            LIMIT 1\r\n        )\r\n    ) AS supplier_id\r\n)\r\nSELECT\r\n    s.supplier_id,\r\n    s.supplier_code,\r\n    s.supplier_name,\r\n    s.supplier_status,\r\n\r\n    ssh.supplier_status_history_id,\r\n    ssh.status_timestamp,\r\n    ssh.operational_status,\r\n    ssh.delivery_status,\r\n    ssh.capacity_utilization,\r\n    ssh.quality_status,\r\n    ssh.inventory_status,\r\n    ssh.last_update_at,\r\n    ssh.missed_update_count,\r\n    ssh.status_details\r\n\r\nFROM target_supplier ts\r\nJOIN suppliers s\r\n    ON s.supplier_id = ts.supplier_id\r\nLEFT JOIN supplier_status_history ssh\r\n    ON ssh.supplier_id = s.supplier_id\r\n\r\nORDER BY ssh.status_timestamp DESC\r\nLIMIT 20;",
+          "schema": "public",
+          "tableMode": "list",
+          "schemaMode": "list",
+          "columnsMode": "manually",
+          "idleTimeout": 0,
+          "credentialId": "bbbdb332-ae79-4355-9eaf-0f53c59954dd",
+          "queryBatching": "single",
+          "queryParameters": [],
+          "outputLargeNumbersAsText": false,
+          "replaceEmptyStringsWithNull": false
+        },
+        "toolId": "postgres.executeQuery",
+        "toolData": {
+          "id": "postgres.executeQuery",
+          "displayName": "Execute Query",
+          "category": "Memory & State",
+          "provider": "postgres",
+          "operation": "executeQuery",
+          "icon": "Database",
+          "description": "Execute a raw SQL query",
+          "inputSchemaJSON": {
+            "type": "object",
+            "properties": {
+              "credentialId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "queryTimeout": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "description": "Connection timeout in seconds"
+              },
+              "idleTimeout": {
+                "type": "integer",
+                "minimum": 0,
+                "default": 0,
+                "description": "Delay closing idle connection in seconds"
+              },
+              "replaceEmptyStringsWithNull": {
+                "type": "boolean",
+                "default": false,
+                "description": "Replace empty string values with NULL"
+              },
+              "outputLargeNumbersAsText": {
+                "type": "boolean",
+                "default": false,
+                "description": "Output BIGINT/NUMERIC as text"
+              },
+              "queryBatching": {
+                "type": "string",
+                "enum": [
+                  "single",
+                  "independently",
+                  "transaction"
+                ],
+                "default": "single",
+                "description": "Query Batching"
+              },
+              "query": {
+                "type": "string",
+                "description": "SQL query to execute"
+              },
+              "queryParameters": {
+                "type": "array",
+                "default": [],
+                "description": "Parameters for prepared statements"
+              }
+            },
+            "required": [
+              "credentialId",
+              "query"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "executionMode": "batch"
+        },
+        "isTrigger": false,
+        "connectedHandles": [],
+        "isPrimaryTrigger": false
+      },
+      "type": "action",
+      "width": 220,
+      "height": 94,
+      "dragging": false,
+      "position": {
+        "x": -297.9076456620489,
+        "y": 171.01792577508542
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": -297.9076456620489,
+        "y": 171.01792577508542
+      }
+    },
+    {
+      "id": "postgres.executeQuery-1789500778266007",
+      "data": {
+        "label": "Negotiation Events",
+        "inputs": {
+          "query": "SELECT\r\n    nm.id AS message_id,\r\n    nm.negotiation_id,\r\n    nm.sender_type,\r\n    nm.message_type,\r\n    nm.content,\r\n    nm.authorized_by,\r\n    nm.execution_id,\r\n    nm.created_at,\r\n\r\n    n.rfq_id,\r\n    n.quotation_id,\r\n    n.supplier_id,\r\n    n.status AS negotiation_status\r\n\r\nFROM public.negotiation_messages nm\r\n\r\nJOIN public.negotiations n\r\n    ON n.id = nm.negotiation_id\r\n\r\nORDER BY nm.created_at DESC\r\nLIMIT 100;",
+          "schema": "public",
+          "tableMode": "list",
+          "schemaMode": "list",
+          "columnsMode": "manually",
+          "idleTimeout": 0,
+          "credentialId": "bbbdb332-ae79-4355-9eaf-0f53c59954dd",
+          "queryBatching": "single",
+          "queryParameters": [],
+          "outputLargeNumbersAsText": false,
+          "replaceEmptyStringsWithNull": false
+        },
+        "toolId": "postgres.executeQuery",
+        "toolData": {
+          "id": "postgres.executeQuery",
+          "displayName": "Execute Query",
+          "category": "Memory & State",
+          "provider": "postgres",
+          "operation": "executeQuery",
+          "icon": "Database",
+          "description": "Execute a raw SQL query",
+          "inputSchemaJSON": {
+            "type": "object",
+            "properties": {
+              "credentialId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "queryTimeout": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "description": "Connection timeout in seconds"
+              },
+              "idleTimeout": {
+                "type": "integer",
+                "minimum": 0,
+                "default": 0,
+                "description": "Delay closing idle connection in seconds"
+              },
+              "replaceEmptyStringsWithNull": {
+                "type": "boolean",
+                "default": false,
+                "description": "Replace empty string values with NULL"
+              },
+              "outputLargeNumbersAsText": {
+                "type": "boolean",
+                "default": false,
+                "description": "Output BIGINT/NUMERIC as text"
+              },
+              "queryBatching": {
+                "type": "string",
+                "enum": [
+                  "single",
+                  "independently",
+                  "transaction"
+                ],
+                "default": "single",
+                "description": "Query Batching"
+              },
+              "query": {
+                "type": "string",
+                "description": "SQL query to execute"
+              },
+              "queryParameters": {
+                "type": "array",
+                "default": [],
+                "description": "Parameters for prepared statements"
+              }
+            },
+            "required": [
+              "credentialId",
+              "query"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "executionMode": "batch"
+        },
+        "isTrigger": false,
+        "connectedHandles": [],
+        "isPrimaryTrigger": false
+      },
+      "type": "action",
+      "width": 220,
+      "height": 94,
+      "dragging": false,
+      "position": {
+        "x": -286.1281414800391,
+        "y": 517.0408611216219
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": -286.1281414800391,
+        "y": 517.0408611216219
+      }
+    },
+    {
+      "id": "postgres.executeQuery-1789500780224008",
+      "data": {
+        "label": "Supplier Pricing",
+        "inputs": {
+          "query": "SELECT\r\n    sc.supplier_id,\r\n    s.supplier_code,\r\n    s.supplier_name,\r\n    sc.component_id,\r\n    sc.reference_unit_price,\r\n    sc.currency,\r\n    sc.lead_time_days,\r\n    sc.minimum_order_quantity,\r\n    sc.is_qualified,\r\n    sc.is_preferred_supplier\r\nFROM public.supplier_components sc\r\nLEFT JOIN public.suppliers s\r\n    ON s.supplier_id = sc.supplier_id\r\nORDER BY sc.supplier_id, sc.component_id;",
+          "schema": "public",
+          "tableMode": "list",
+          "schemaMode": "list",
+          "columnsMode": "manually",
+          "idleTimeout": 0,
+          "credentialId": "bbbdb332-ae79-4355-9eaf-0f53c59954dd",
+          "queryBatching": "single",
+          "queryParameters": [],
+          "outputLargeNumbersAsText": false,
+          "replaceEmptyStringsWithNull": false
+        },
+        "toolId": "postgres.executeQuery",
+        "toolData": {
+          "id": "postgres.executeQuery",
+          "displayName": "Execute Query",
+          "category": "Memory & State",
+          "provider": "postgres",
+          "operation": "executeQuery",
+          "icon": "Database",
+          "description": "Execute a raw SQL query",
+          "inputSchemaJSON": {
+            "type": "object",
+            "properties": {
+              "credentialId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "queryTimeout": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "description": "Connection timeout in seconds"
+              },
+              "idleTimeout": {
+                "type": "integer",
+                "minimum": 0,
+                "default": 0,
+                "description": "Delay closing idle connection in seconds"
+              },
+              "replaceEmptyStringsWithNull": {
+                "type": "boolean",
+                "default": false,
+                "description": "Replace empty string values with NULL"
+              },
+              "outputLargeNumbersAsText": {
+                "type": "boolean",
+                "default": false,
+                "description": "Output BIGINT/NUMERIC as text"
+              },
+              "queryBatching": {
+                "type": "string",
+                "enum": [
+                  "single",
+                  "independently",
+                  "transaction"
+                ],
+                "default": "single",
+                "description": "Query Batching"
+              },
+              "query": {
+                "type": "string",
+                "description": "SQL query to execute"
+              },
+              "queryParameters": {
+                "type": "array",
+                "default": [],
+                "description": "Parameters for prepared statements"
+              }
+            },
+            "required": [
+              "credentialId",
+              "query"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "executionMode": "batch"
+        },
+        "isTrigger": false,
+        "connectedHandles": [],
+        "isPrimaryTrigger": false
+      },
+      "type": "action",
+      "width": 220,
+      "height": 94,
+      "dragging": false,
+      "position": {
+        "x": -290.5454555482928,
+        "y": 346.23805048248045
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": -290.5454555482928,
+        "y": 346.23805048248045
+      }
+    },
+    {
+      "id": "merge-1789500887326009",
+      "data": {
+        "label": "Merge Negotiation Intelligence",
+        "inputs": {
+          "mode": "append",
+          "query": "SELECT * FROM input1 LEFT JOIN input2 ON input1.name = input2.id",
+          "outputType": "keep_matches",
+          "numberOfInputs": 4,
+          "outputDataFrom": "both",
+          "chooseBranchWaitStrategy": "wait_for_all",
+          "chooseBranchSelectedInput": 1
+        },
+        "toolId": "merge",
+        "toolData": {
+          "id": "merge",
+          "displayName": "Merge Data",
+          "category": "Logic & Flow Control",
+          "icon": "merge",
+          "description": "Combine multiple data streams",
+          "inputSchemaJSON": {
+            "type": "object",
+            "properties": {
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "append",
+                  "combine",
+                  "sql_query",
+                  "choose_branch"
+                ],
+                "default": "append",
+                "description": "How to merge the inputs"
+              },
+              "numberOfInputs": {
+                "type": "number",
+                "minimum": 2,
+                "maximum": 10,
+                "default": 2,
+                "description": "Number of input streams to merge"
+              },
+              "combineBy": {
+                "type": "string",
+                "enum": [
+                  "position",
+                  "matching_fields",
+                  "all_possible_combinations"
+                ],
+                "description": "How to combine items from different inputs"
+              },
+              "fieldsToMatchHaveDifferentNames": {
+                "type": "boolean",
+                "description": "Whether matching fields have different names in each input"
+              },
+              "matchingFields": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Fields to match on"
+              },
+              "matchingFieldsDifferent": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "input0": {
+                      "type": "string"
+                    },
+                    "input1": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "input0",
+                    "input1"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "query": {
+                "type": "string",
+                "default": "SELECT * FROM input1 LEFT JOIN input2 ON input1.name = input2.id",
+                "description": "SQL query to execute. Use table names like input1, input2, etc."
+              },
+              "chooseBranchWaitStrategy": {
+                "type": "string",
+                "enum": [
+                  "wait_for_all"
+                ],
+                "default": "wait_for_all",
+                "description": "Wait strategy"
+              },
+              "chooseBranchOutput": {
+                "type": "string",
+                "enum": [
+                  "input_0",
+                  "input_1",
+                  "a_single_empty_item",
+                  "data_of_specified_input"
+                ],
+                "description": "Which input to use for the output"
+              },
+              "chooseBranchSelectedInput": {
+                "type": "number",
+                "default": 1,
+                "description": "Which input to use (1-based)"
+              },
+              "outputType": {
+                "type": "string",
+                "enum": [
+                  "all_items",
+                  "first_item",
+                  "enrich_input_1",
+                  "enrich_input_2",
+                  "keep_matches",
+                  "keep_everything",
+                  "keep_non_matches"
+                ],
+                "default": "keep_matches",
+                "description": "Output configuration"
+              },
+              "outputDataFrom": {
+                "type": "string",
+                "enum": [
+                  "both",
+                  "input_1",
+                  "input_2"
+                ],
+                "default": "both",
+                "description": "Which input to use for the output data when matching"
+              },
+              "options": {
+                "type": "object",
+                "properties": {
+                  "clashHandling": {
+                    "type": "string",
+                    "enum": [
+                      "use_input_0",
+                      "use_input_1",
+                      "append_suffix"
+                    ],
+                    "default": "use_input_1"
+                  },
+                  "fuzzyComparison": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "ignoreCase": {
+                    "type": "boolean",
+                    "default": true
+                  },
+                  "disableDotNotation": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "multipleMatches": {
+                    "type": "string",
+                    "enum": [
+                      "first",
+                      "all"
+                    ],
+                    "default": "all"
+                  },
+                  "mergingNestedFields": {
+                    "type": "string",
+                    "enum": [
+                      "shallow",
+                      "deep"
+                    ],
+                    "default": "shallow"
+                  },
+                  "minimizeEmptyFields": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        "isTrigger": false,
+        "connectedHandles": [
+          "input-0",
+          "input-1",
+          "input-2",
+          "input-3"
+        ],
+        "isPrimaryTrigger": false
+      },
+      "type": "merge",
+      "width": 200,
+      "height": 232,
+      "dragging": false,
+      "position": {
+        "x": 40.605864773057746,
+        "y": 211.21551075733913
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 40.605864773057746,
+        "y": 211.21551075733913
+      }
+    },
+    {
+      "id": "ai-agent-orchestrator-1789500927746011",
+      "data": {
+        "label": "Negotiation Intelligence Agent",
+        "inputs": {
+          "userPrompt": "You are the PRISM Negotiation Intelligence Agent.\r\n\r\nAnalyze the complete PRISM negotiation dataset provided below.\r\n\r\nThe dataset contains:\r\n- negotiation_context\r\n- supplier_history\r\n- supplier_pricing\r\n- negotiation_events\r\n\r\nUse ALL available records.\r\n\r\nDo not invent missing information.\r\n\r\nIf negotiation_context or negotiation_events are empty, use the available supplier history and supplier pricing, but clearly state that transaction-specific negotiation information is unavailable.\r\n\r\nAnalyze:\r\n\r\n- supplier reliability\r\n- delivery performance\r\n- operational risk\r\n- quality\r\n- inventory\r\n- capacity utilization\r\n- reference pricing\r\n- lead time\r\n- MOQ\r\n- qualification\r\n- preferred supplier status\r\n- previous negotiation events when available\r\n\r\nDetermine the appropriate action:\r\nACCEPT, COUNTEROFFER, ESCALATE, or REJECT.\r\n\r\nDo not treat a reference price as the current quotation price.\r\n\r\nDo not create a numerical counteroffer unless sufficient transaction-specific pricing information exists.\r\n\r\nReturn ONLY valid JSON:\r\n\r\n{\r\n  \"negotiation_assessment\": {\r\n    \"overall_status\": \"ACCEPT | COUNTEROFFER | ESCALATE | REJECT\",\r\n    \"risk_level\": \"LOW | MEDIUM | HIGH\",\r\n    \"summary\": \"\"\r\n  },\r\n  \"supplier_analysis\": {\r\n    \"strengths\": [],\r\n    \"weaknesses\": [],\r\n    \"leverage_points\": []\r\n  },\r\n  \"commercial_analysis\": {\r\n    \"current_price\": null,\r\n    \"reference_price\": null,\r\n    \"recommended_price\": null,\r\n    \"currency\": null,\r\n    \"price_change_reason\": \"\"\r\n  },\r\n  \"term_analysis\": {\r\n    \"current_lead_time\": null,\r\n    \"recommended_lead_time\": null,\r\n    \"current_moq\": null,\r\n    \"recommended_moq\": null,\r\n    \"payment_terms\": null\r\n  },\r\n  \"recommended_action\": {\r\n    \"action\": \"ACCEPT | COUNTEROFFER | ESCALATE | REJECT\",\r\n    \"counteroffer\": \"\",\r\n    \"reasoning\": \"\"\r\n  },\r\n  \"evidence\": [],\r\n  \"uncertainties\": []\r\n}\r\n\r\nPRISM NEGOTIATION DATA:\r\n\r\n{{ JSON.stringify($json) }}",
+          "outputFormat": "json",
+          "promptSource": "define",
+          "systemPrompt": "",
+          "systemMessage": "You are a specialized PRISM procurement negotiation agent. Use only evidence from the supplied PRISM data. Never fabricate missing information. Return valid JSON only.",
+          "requireOutputFormat": true,
+          "showSystemMessageOption": true
+        },
+        "toolId": "ai-agent-orchestrator",
+        "toolData": {
+          "id": "ai-agent-orchestrator",
+          "displayName": "AI Agent",
+          "category": "AI / LLM",
+          "provider": "aiagent",
+          "operation": "execute",
+          "icon": "smart_toy",
+          "description": "Specialized orchestrator for multi-tool AI workflows with chat model, memory, and tools",
+          "inputSchemaJSON": {
+            "type": "object",
+            "properties": {
+              "agentName": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Name of this AI Agent node"
+              },
+              "systemPrompt": {
+                "type": "string",
+                "default": "",
+                "description": "System prompt to guide the agent behavior"
+              },
+              "llmSubNode": {
+                "type": "object",
+                "properties": {
+                  "model": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "The LLM model to use (e.g., gpt-4, claude-3-opus)"
+                  },
+                  "provider": {
+                    "type": "string",
+                    "description": "The LLM provider"
+                  },
+                  "temperature": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 2,
+                    "description": "Controls randomness/creativity (0=deterministic, 2=very creative)"
+                  },
+                  "maxTokens": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 131072,
+                    "description": "Maximum tokens for LLM response"
+                  },
+                  "topP": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "Nucleus sampling parameter"
+                  }
+                },
+                "required": [
+                  "model",
+                  "provider"
+                ],
+                "additionalProperties": false,
+                "description": "Chat Model sub-node configuration"
+              },
+              "tools": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "inputSchema": {},
+                    "nodeId": {
+                      "type": "string"
+                    },
+                    "params": {
+                      "type": "object",
+                      "additionalProperties": {}
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "description",
+                    "nodeId"
+                  ],
+                  "additionalProperties": false
+                },
+                "description": "External tools the agent can use"
+              },
+              "memory": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string"
+                  },
+                  "config": {}
+                },
+                "required": [
+                  "type"
+                ],
+                "additionalProperties": false,
+                "description": "Conversation memory configuration"
+              },
+              "agentSkills": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "instructions": {
+                      "type": "string"
+                    },
+                    "inputVariable": {
+                      "type": "string"
+                    },
+                    "tools": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "outputType": {
+                      "type": "string"
+                    },
+                    "jsonTemplate": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "description",
+                    "instructions",
+                    "inputVariable",
+                    "outputType"
+                  ],
+                  "additionalProperties": false
+                },
+                "description": "Specialized skills for the agent"
+              },
+              "promptSource": {
+                "type": "string",
+                "enum": [
+                  "connected",
+                  "define"
+                ],
+                "default": "define",
+                "description": "Source for Prompt (User Message)."
+              },
+              "userPrompt": {
+                "type": "string",
+                "default": "",
+                "description": "Prompt entered when \"Define below\" is selected"
+              },
+              "requireOutputFormat": {
+                "type": "boolean",
+                "default": false,
+                "description": "Whether to force a specific output format (e.g. JSON)"
+              },
+              "outputFormat": {
+                "type": "string",
+                "enum": [
+                  "text",
+                  "json"
+                ],
+                "default": "text",
+                "description": "Target output format: text or json"
+              },
+              "userMessage": {
+                "type": "string",
+                "minLength": 1,
+                "description": "User input message or prompt"
+              },
+              "context": {
+                "description": "Additional context from previous workflow nodes"
+              },
+              "llmCredentials": {
+                "type": "object",
+                "properties": {
+                  "apiKey": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "apiKey"
+                ],
+                "additionalProperties": false,
+                "description": "Credentials for LLM provider"
+              },
+              "userId": {
+                "type": "string",
+                "description": "User ID for execution context"
+              },
+              "triggerData": {
+                "description": "External trigger information (e.g. chat session ID)"
+              },
+              "onToolExecute": {
+                "description": "Callback for visual feedback during tool execution"
+              },
+              "onMemoryUpdate": {
+                "description": "Callback for when memory is loaded or saved (sessionId, formattedHistory, rawHistory)"
+              }
+            },
+            "required": [
+              "agentName",
+              "llmSubNode",
+              "userMessage",
+              "llmCredentials"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "executionMode": "batch"
+        },
+        "isTrigger": false,
+        "isFormWait": false,
+        "isTimerWait": false,
+        "isWebhookWait": false,
+        "connectedHandles": [
+          "chat-model"
+        ],
+        "isPrimaryTrigger": false
+      },
+      "type": "action",
+      "width": 220,
+      "height": 94,
+      "dragging": false,
+      "position": {
+        "x": 377.8914501828425,
+        "y": 258.3155994438502
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 377.8914501828425,
+        "y": 258.3155994438502
+      }
+    },
+    {
+      "id": "gemini-1789500934757012",
+      "data": {
+        "label": "Message a Model Text",
+        "inputs": {
+          "model": "gemini-3.5-flash",
+          "prompt": "",
+          "fileUrl": "",
+          "options": {},
+          "audioUrl": "",
+          "pageSize": 10,
+          "resource": "Text",
+          "simplify": true,
+          "inputType": "Binary File(s)",
+          "operation": "Message a Model",
+          "pageToken": "",
+          "displayName": "",
+          "documentUrl": "",
+          "forceDelete": false,
+          "builtInTools": {},
+          "credentialId": "f6cbcdc4-f465-4d72-9409-206dd8369917",
+          "fileDisplayName": "",
+          "inputDataFieldName": "data",
+          "fileSearchStoreName": "",
+          "outputContentAsJson": false
+        },
+        "toolId": "gemini",
+        "toolData": {
+          "id": "gemini",
+          "displayName": "Google Gemini",
+          "type": "chat model",
+          "category": "AI / LLM",
+          "provider": "LLM Models",
+          "operation": "execute",
+          "icon": "api",
+          "description": "Interact with Google Gemini AI models for audio, vision, and language processing.",
+          "inputSchemaJSON": {
+            "type": "object",
+            "properties": {
+              "resource": {
+                "type": "string",
+                "enum": [
+                  "Text",
+                  "Audio",
+                  "Document",
+                  "Media File",
+                  "File Search"
+                ],
+                "default": "Audio"
+              },
+              "operation": {
+                "type": "string",
+                "enum": [
+                  "Message a Model",
+                  "Analyze Audio",
+                  "Transcribe a Recording",
+                  "Analyze Document",
+                  "Upload Media File",
+                  "Create File Search Store",
+                  "Delete File Search Store",
+                  "List File Search Stores",
+                  "Upload to File Search Store"
+                ]
+              },
+              "model": {
+                "type": "string",
+                "default": "gemini-2.5-flash"
+              },
+              "textInput": {
+                "type": "string"
+              },
+              "messages": {
+                "type": "object",
+                "properties": {
+                  "values": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "prompt": {
+                          "type": "string"
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "user",
+                            "model"
+                          ],
+                          "default": "user"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "additionalProperties": false
+              },
+              "inputType": {
+                "type": "string",
+                "enum": [
+                  "Binary File(s)",
+                  "Audio URL",
+                  "Document URL",
+                  "Binary File",
+                  "File URL"
+                ],
+                "default": "Binary File(s)"
+              },
+              "audioUrl": {
+                "type": "string"
+              },
+              "documentUrl": {
+                "type": "string"
+              },
+              "fileUrl": {
+                "type": "string"
+              },
+              "outputContentAsJson": {
+                "type": "boolean",
+                "default": false
+              },
+              "builtInTools": {
+                "type": "object",
+                "properties": {
+                  "googleSearch": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean",
+                          "default": true
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "googleMaps": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "latitude": {
+                          "type": "number"
+                        },
+                        "longitude": {
+                          "type": "number"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "urlContext": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean",
+                          "default": true
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "fileSearch": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean",
+                          "default": true
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "codeExecution": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean",
+                          "default": true
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "additionalProperties": false
+              },
+              "fileSearchStoreName": {
+                "type": "string"
+              },
+              "displayName": {
+                "type": "string"
+              },
+              "fileDisplayName": {
+                "type": "string"
+              },
+              "pageSize": {
+                "type": "number"
+              },
+              "pageToken": {
+                "type": "string"
+              },
+              "forceDelete": {
+                "type": "boolean"
+              },
+              "inputDataFieldName": {
+                "type": "string",
+                "default": "data"
+              },
+              "simplify": {
+                "type": "boolean",
+                "default": true
+              },
+              "options": {
+                "type": "object",
+                "additionalProperties": {}
+              },
+              "credentialId": {
+                "type": "string"
+              },
+              "credentials": {}
+            },
+            "required": [
+              "operation"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "fields": [
+            {
+              "displayName": "Resource",
+              "name": "resource",
+              "type": "options",
+              "noDataExpression": true,
+              "options": [
+                {
+                  "name": "Text",
+                  "value": "Text"
+                },
+                {
+                  "name": "Audio",
+                  "value": "Audio"
+                },
+                {
+                  "name": "Document",
+                  "value": "Document"
+                },
+                {
+                  "name": "Media File",
+                  "value": "Media File"
+                },
+                {
+                  "name": "File Search",
+                  "value": "File Search"
+                }
+              ],
+              "default": "Audio"
+            },
+            {
+              "displayName": "Operation",
+              "name": "operation",
+              "type": "options",
+              "noDataExpression": true,
+              "displayOptions": {
+                "show": {
+                  "resource": [
+                    "Text"
+                  ]
+                }
+              },
+              "options": [
+                {
+                  "name": "Message a Model",
+                  "value": "Message a Model"
+                }
+              ],
+              "default": "Message a Model"
+            },
+            {
+              "displayName": "Operation",
+              "name": "operation",
+              "type": "options",
+              "noDataExpression": true,
+              "displayOptions": {
+                "show": {
+                  "resource": [
+                    "Audio"
+                  ]
+                }
+              },
+              "options": [
+                {
+                  "name": "Analyze Audio",
+                  "value": "Analyze Audio"
+                },
+                {
+                  "name": "Transcribe a Recording",
+                  "value": "Transcribe a Recording"
+                }
+              ],
+              "default": "Analyze Audio"
+            },
+            {
+              "displayName": "Operation",
+              "name": "operation",
+              "type": "options",
+              "noDataExpression": true,
+              "displayOptions": {
+                "show": {
+                  "resource": [
+                    "Document"
+                  ]
+                }
+              },
+              "options": [
+                {
+                  "name": "Analyze Document",
+                  "value": "Analyze Document"
+                }
+              ],
+              "default": "Analyze Document"
+            },
+            {
+              "displayName": "Operation",
+              "name": "operation",
+              "type": "options",
+              "noDataExpression": true,
+              "displayOptions": {
+                "show": {
+                  "resource": [
+                    "Media File"
+                  ]
+                }
+              },
+              "options": [
+                {
+                  "name": "Upload Media File",
+                  "value": "Upload Media File"
+                }
+              ],
+              "default": "Upload Media File"
+            },
+            {
+              "displayName": "Operation",
+              "name": "operation",
+              "type": "options",
+              "noDataExpression": true,
+              "displayOptions": {
+                "show": {
+                  "resource": [
+                    "File Search"
+                  ]
+                }
+              },
+              "options": [
+                {
+                  "name": "Create File Search Store",
+                  "value": "Create File Search Store"
+                },
+                {
+                  "name": "Delete File Search Store",
+                  "value": "Delete File Search Store"
+                },
+                {
+                  "name": "List File Search Stores",
+                  "value": "List File Search Stores"
+                },
+                {
+                  "name": "Upload to File Search Store",
+                  "value": "Upload to File Search Store"
+                }
+              ],
+              "default": "List File Search Stores"
+            },
+            {
+              "displayName": "Model",
+              "name": "model",
+              "type": "options",
+              "fetchEndpoint": "/api/tools/gemini/list-models",
+              "dependsOn": [
+                "credentials"
+              ],
+              "labelKey": "name",
+              "valueKey": "id",
+              "default": "gemini-2.5-flash",
+              "description": "Select the Gemini model to use.",
+              "displayOptions": {
+                "show": {
+                  "resource": [
+                    "Text",
+                    "Audio",
+                    "Document"
+                  ]
+                }
+              }
+            },
+            {
+              "displayName": "Prompt (User Message)",
+              "name": "prompt",
+              "type": "string",
+              "format": "text",
+              "typeOptions": {
+                "rows": 4
+              },
+              "default": "",
+              "placeholder": "e.g. Hello, how can you help me?",
+              "displayOptions": {
+                "show": {
+                  "resource": [
+                    "Text"
+                  ],
+                  "operation": [
+                    "Message a Model"
+                  ]
+                }
+              }
+            },
+            {
+              "displayName": "Text Input",
+              "name": "textInput",
+              "type": "string",
+              "format": "text",
+              "typeOptions": {
+                "rows": 4
+              },
+              "default": "",
+              "placeholder": "What's in this audio?",
+              "displayOptions": {
+                "show": {
+                  "resource": [
+                    "Audio"
+                  ],
+                  "operation": [
+                    "Analyze Audio"
+                  ]
+                }
+              }
+            },
+            {
+              "displayName": "Text Input",
+              "name": "textInput",
+              "type": "string",
+              "format": "text",
+              "typeOptions": {
+                "rows": 4
+              },
+              "default": "",
+              "placeholder": "What's in this document?",
+              "displayOptions": {
+                "show": {
+                  "resource": [
+                    "Document"
+                  ],
+                  "operation": [
+                    "Analyze Document"
+                  ]
+                }
+              }
+            },
+            {
+              "displayName": "Input Type",
+              "name": "inputType",
+              "type": "options",
+              "displayOptions": {
+                "show": {
+                  "resource": [
+                    "Audio"
+                  ]
+                }
+              },
+              "options": [
+                {
+                  "name": "Binary File(s)",
+                  "value": "Binary File(s)"
+                },
+                {
+                  "name": "Audio URL",
+                  "value": "Audio URL"
+                }
+              ],
+              "default": "Binary File(s)"
+            },
+            {
+              "displayName": "Input Type",
+              "name": "inputType",
+              "type": "options",
+              "displayOptions": {
+                "show": {
+                  "resource": [
+                    "Document"
+                  ]
+                }
+              },
+              "options": [
+                {
+                  "name": "Binary File(s)",
+                  "value": "Binary File(s)"
+                },
+                {
+                  "name": "Document URL",
+                  "value": "Document URL"
+                }
+              ],
+              "default": "Binary File(s)"
+            },
+            {
+              "displayName": "Input Type",
+              "name": "inputType",
+              "type": "options",
+              "displayOptions": {
+                "show": {
+                  "resource": [
+                    "Media File"
+                  ],
+                  "operation": [
+                    "Upload Media File"
+                  ]
+                }
+              },
+              "options": [
+                {
+                  "name": "Binary File",
+                  "value": "Binary File"
+                },
+                {
+                  "name": "File URL",
+                  "value": "File URL"
+                }
+              ],
+              "default": "Binary File"
+            },
+            {
+              "displayName": "Audio URL",
+              "name": "audioUrl",
+              "type": "string",
+              "default": "",
+              "placeholder": "https://example.com/audio.mp3",
+              "description": "Publicly accessible URL of the audio file to process",
+              "displayOptions": {
+                "show": {
+                  "resource": [
+                    "Audio"
+                  ],
+                  "inputType": [
+                    "Audio URL"
+                  ]
+                }
+              }
+            },
+            {
+              "displayName": "Document URL",
+              "name": "documentUrl",
+              "type": "string",
+              "default": "",
+              "placeholder": "https://example.com/file.pdf",
+              "description": "Publicly accessible URL of the document file to process",
+              "displayOptions": {
+                "show": {
+                  "resource": [
+                    "Document"
+                  ],
+                  "inputType": [
+                    "Document URL"
+                  ]
+                }
+              }
+            },
+            {
+              "displayName": "File URL",
+              "name": "fileUrl",
+              "type": "string",
+              "default": "",
+              "placeholder": "https://example.com/file.pdf",
+              "description": "Publicly accessible URL of the file to upload",
+              "displayOptions": {
+                "show": {
+                  "resource": [
+                    "Media File"
+                  ],
+                  "operation": [
+                    "Upload Media File"
+                  ],
+                  "inputType": [
+                    "File URL"
+                  ]
+                }
+              }
+            },
+            {
+              "displayName": "File Search Store Name",
+              "name": "fileSearchStoreName",
+              "type": "string",
+              "default": "",
+              "placeholder": "fileSearchStores/my-file-search-store-123",
+              "description": "The File Search store resource name (for example: fileSearchStores/my-store-id)",
+              "displayOptions": {
+                "show": {
+                  "resource": [
+                    "File Search"
+                  ],
+                  "operation": [
+                    "Delete File Search Store",
+                    "Upload to File Search Store"
+                  ]
+                }
+              }
+            },
+            {
+              "displayName": "Display Name",
+              "name": "displayName",
+              "type": "string",
+              "default": "",
+              "placeholder": "Testing",
+              "description": "Display name for the new File Search store",
+              "displayOptions": {
+                "show": {
+                  "resource": [
+                    "File Search"
+                  ],
+                  "operation": [
+                    "Create File Search Store"
+                  ]
+                }
+              }
+            },
+            {
+              "displayName": "File Display Name",
+              "name": "fileDisplayName",
+              "type": "string",
+              "default": "",
+              "placeholder": "AWS",
+              "description": "Display name for the uploaded document in the File Search store",
+              "displayOptions": {
+                "show": {
+                  "resource": [
+                    "File Search"
+                  ],
+                  "operation": [
+                    "Upload to File Search Store"
+                  ]
+                }
+              }
+            },
+            {
+              "displayName": "Input Type",
+              "name": "inputType",
+              "type": "options",
+              "displayOptions": {
+                "show": {
+                  "resource": [
+                    "File Search"
+                  ],
+                  "operation": [
+                    "Upload to File Search Store"
+                  ]
+                }
+              },
+              "options": [
+                {
+                  "name": "Binary File",
+                  "value": "Binary File"
+                }
+              ],
+              "default": "Binary File"
+            },
+            {
+              "displayName": "Page Size",
+              "name": "pageSize",
+              "type": "number",
+              "default": 10,
+              "description": "Maximum number of stores to return per page (1 to 20)",
+              "displayOptions": {
+                "show": {
+                  "resource": [
+                    "File Search"
+                  ],
+                  "operation": [
+                    "List File Search Stores"
+                  ]
+                }
+              }
+            },
+            {
+              "displayName": "Page Token",
+              "name": "pageToken",
+              "type": "string",
+              "default": "",
+              "description": "Pagination token from a previous list response",
+              "displayOptions": {
+                "show": {
+                  "resource": [
+                    "File Search"
+                  ],
+                  "operation": [
+                    "List File Search Stores"
+                  ]
+                }
+              }
+            },
+            {
+              "displayName": "Force Delete",
+              "name": "forceDelete",
+              "type": "boolean",
+              "default": false,
+              "description": "Delete all related documents in the store as well",
+              "displayOptions": {
+                "show": {
+                  "resource": [
+                    "File Search"
+                  ],
+                  "operation": [
+                    "Delete File Search Store"
+                  ]
+                }
+              }
+            },
+            {
+              "displayName": "Input Data Field Name(s)",
+              "name": "inputDataFieldName",
+              "type": "string",
+              "default": "data",
+              "description": "The name of the input binary field to process. Leave as data, or use your form file field name such as image.",
+              "displayOptions": {
+                "show": {
+                  "operation": [
+                    "Analyze Audio",
+                    "Transcribe a Recording",
+                    "Analyze Document",
+                    "Upload Media File",
+                    "Upload to File Search Store"
+                  ]
+                }
+              }
+            },
+            {
+              "displayName": "Simplify Output",
+              "name": "simplify",
+              "type": "boolean",
+              "default": true,
+              "displayOptions": {
+                "show": {
+                  "resource": [
+                    "Text",
+                    "Audio",
+                    "Document"
+                  ]
+                }
+              }
+            },
+            {
+              "displayName": "Output Content as JSON",
+              "name": "outputContentAsJson",
+              "type": "boolean",
+              "default": false,
+              "displayOptions": {
+                "show": {
+                  "resource": [
+                    "Text"
+                  ],
+                  "operation": [
+                    "Message a Model"
+                  ]
+                }
+              }
+            },
+            {
+              "displayName": "Built-in Tools",
+              "name": "builtInTools",
+              "type": "fixedCollection",
+              "typeOptions": {
+                "multipleValues": true,
+                "buttonLabel": "Add Built-in Tool"
+              },
+              "default": {},
+              "displayOptions": {
+                "hide": {
+                  "operation": [
+                    "Message a Model"
+                  ]
+                },
+                "show": {
+                  "resource": [
+                    "Text"
+                  ]
+                }
+              },
+              "options": [
+                {
+                  "displayName": "Google Search",
+                  "name": "googleSearch",
+                  "values": [
+                    {
+                      "name": "enabled",
+                      "type": "boolean",
+                      "default": true
+                    }
+                  ]
+                },
+                {
+                  "displayName": "Google Maps",
+                  "name": "googleMaps",
+                  "values": [
+                    {
+                      "displayName": "Latitude",
+                      "name": "latitude",
+                      "type": "number",
+                      "default": 0
+                    },
+                    {
+                      "displayName": "Longitude",
+                      "name": "longitude",
+                      "type": "number",
+                      "default": 0
+                    }
+                  ]
+                },
+                {
+                  "displayName": "URL Context",
+                  "name": "urlContext",
+                  "values": [
+                    {
+                      "name": "enabled",
+                      "type": "boolean",
+                      "default": true
+                    }
+                  ]
+                },
+                {
+                  "displayName": "Code Execution",
+                  "name": "codeExecution",
+                  "values": [
+                    {
+                      "name": "enabled",
+                      "type": "boolean",
+                      "default": true
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "displayName": "Options",
+              "name": "options",
+              "type": "collection",
+              "displayOptions": {
+                "show": {
+                  "/operation": [
+                    "Analyze Audio",
+                    "Transcribe a Recording",
+                    "Analyze Document",
+                    "Message a Model"
+                  ]
+                }
+              },
+              "placeholder": "Add Option",
+              "default": {},
+              "fields": [
+                {
+                  "name": "maxTokens",
+                  "displayName": "Length of Description (Max Tokens)",
+                  "type": "number",
+                  "default": 1000,
+                  "description": "The maximum number of tokens to generate for Analyze Audio and Analyze Document.",
+                  "displayOptions": {
+                    "show": {
+                      "/operation": [
+                        "Analyze Audio",
+                        "Analyze Document",
+                        "Message a Model"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "includeMergedResponse",
+                  "displayName": "Include Merged Response",
+                  "type": "boolean",
+                  "default": true,
+                  "displayOptions": {
+                    "show": {
+                      "/operation": [
+                        "Message a Model"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "systemMessage",
+                  "displayName": "System Message",
+                  "type": "string",
+                  "format": "text",
+                  "default": "",
+                  "typeOptions": {
+                    "rows": 3
+                  },
+                  "displayOptions": {
+                    "show": {
+                      "/operation": [
+                        "Message a Model"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "frequencyPenalty",
+                  "displayName": "Frequency Penalty",
+                  "type": "number",
+                  "default": 0,
+                  "displayOptions": {
+                    "show": {
+                      "/operation": [
+                        "Message a Model"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "numberOfCompletions",
+                  "displayName": "Number of Completions",
+                  "type": "number",
+                  "default": 1,
+                  "displayOptions": {
+                    "show": {
+                      "/operation": [
+                        "Message a Model"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "presencePenalty",
+                  "displayName": "Presence Penalty",
+                  "type": "number",
+                  "default": 0,
+                  "displayOptions": {
+                    "show": {
+                      "/operation": [
+                        "Message a Model"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "temperature",
+                  "displayName": "Output Randomness (Temperature)",
+                  "type": "number",
+                  "default": 0.7,
+                  "displayOptions": {
+                    "show": {
+                      "/operation": [
+                        "Message a Model"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "topP",
+                  "displayName": "Output Randomness (Top P)",
+                  "type": "number",
+                  "default": 0.95,
+                  "displayOptions": {
+                    "show": {
+                      "/operation": [
+                        "Message a Model"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "topK",
+                  "displayName": "Output Randomness (Top K)",
+                  "type": "number",
+                  "default": 40,
+                  "displayOptions": {
+                    "show": {
+                      "/operation": [
+                        "Message a Model"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "thinkingBudget",
+                  "displayName": "Thinking Budget",
+                  "type": "number",
+                  "default": 0,
+                  "displayOptions": {
+                    "show": {
+                      "/operation": [
+                        "Message a Model"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "maxToolCallsIterations",
+                  "displayName": "Max Tool Calls Iterations",
+                  "type": "number",
+                  "default": 1,
+                  "displayOptions": {
+                    "show": {
+                      "/operation": [
+                        "Message a Model"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "startTime",
+                  "displayName": "Start Time",
+                  "type": "string",
+                  "default": "",
+                  "description": "Start timestamp for transcription range. Example: 00:00:30 or 30s.",
+                  "displayOptions": {
+                    "show": {
+                      "/operation": [
+                        "Transcribe a Recording"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "endTime",
+                  "displayName": "End Time",
+                  "type": "string",
+                  "default": "",
+                  "description": "End timestamp for transcription range. Example: 00:02:00 or 120s.",
+                  "displayOptions": {
+                    "show": {
+                      "/operation": [
+                        "Transcribe a Recording"
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          ],
+          "initialData": {
+            "resource": "Text",
+            "operation": "Message a Model",
+            "model": "gemini-2.5-flash",
+            "inputType": "Binary File(s)",
+            "prompt": "",
+            "audioUrl": "",
+            "documentUrl": "",
+            "fileUrl": "",
+            "fileSearchStoreName": "",
+            "displayName": "",
+            "fileDisplayName": "",
+            "pageSize": 10,
+            "pageToken": "",
+            "forceDelete": false,
+            "inputDataFieldName": "data",
+            "simplify": true,
+            "outputContentAsJson": false,
+            "builtInTools": {},
+            "credentialId": "",
+            "options": {}
+          }
+        },
+        "isSubNode": true,
+        "connectedHandles": []
+      },
+      "type": "action",
+      "width": 80,
+      "height": 75,
+      "dragging": false,
+      "position": {
+        "x": 381.8914501828425,
+        "y": 428.3155994438502
+      },
+      "selected": true,
+      "positionAbsolute": {
+        "x": 381.8914501828425,
+        "y": 428.3155994438502
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-gemini-1789500934757012-ai-agent-orchestrator-1789500927746011-chat-model",
+      "data": {},
+      "type": "custom",
+      "source": "gemini-1789500934757012",
+      "target": "ai-agent-orchestrator-1789500927746011",
+      "selected": false,
+      "sourceHandle": "subnode-out",
+      "targetHandle": "chat-model"
+    },
+    {
+      "id": "reactflow__edge-executeSubWorkflowTrigger-1788674470236009-postgres.executeQuery-1789500774482005",
+      "data": {},
+      "type": "custom",
+      "source": "executeSubWorkflowTrigger-1788674470236009",
+      "target": "postgres.executeQuery-1789500774482005"
+    },
+    {
+      "id": "reactflow__edge-executeSubWorkflowTrigger-1788674470236009-postgres.executeQuery-1789500776136006",
+      "data": {},
+      "type": "custom",
+      "source": "executeSubWorkflowTrigger-1788674470236009",
+      "target": "postgres.executeQuery-1789500776136006"
+    },
+    {
+      "id": "reactflow__edge-executeSubWorkflowTrigger-1788674470236009-postgres.executeQuery-1789500780224008",
+      "data": {},
+      "type": "custom",
+      "source": "executeSubWorkflowTrigger-1788674470236009",
+      "target": "postgres.executeQuery-1789500780224008"
+    },
+    {
+      "id": "reactflow__edge-executeSubWorkflowTrigger-1788674470236009-postgres.executeQuery-1789500778266007",
+      "data": {},
+      "type": "custom",
+      "source": "executeSubWorkflowTrigger-1788674470236009",
+      "target": "postgres.executeQuery-1789500778266007"
+    },
+    {
+      "id": "reactflow__edge-postgres.executeQuery-1789500774482005-merge-1789500887326009input-0",
+      "data": {},
+      "type": "custom",
+      "source": "postgres.executeQuery-1789500774482005",
+      "target": "merge-1789500887326009",
+      "targetHandle": "input-0"
+    },
+    {
+      "id": "reactflow__edge-postgres.executeQuery-1789500776136006-merge-1789500887326009input-1",
+      "data": {},
+      "type": "custom",
+      "source": "postgres.executeQuery-1789500776136006",
+      "target": "merge-1789500887326009",
+      "targetHandle": "input-1"
+    },
+    {
+      "id": "reactflow__edge-postgres.executeQuery-1789500780224008-merge-1789500887326009input-2",
+      "data": {},
+      "type": "custom",
+      "source": "postgres.executeQuery-1789500780224008",
+      "target": "merge-1789500887326009",
+      "targetHandle": "input-2"
+    },
+    {
+      "id": "reactflow__edge-postgres.executeQuery-1789500778266007-merge-1789500887326009input-3",
+      "data": {},
+      "type": "custom",
+      "source": "postgres.executeQuery-1789500778266007",
+      "target": "merge-1789500887326009",
+      "targetHandle": "input-3"
+    },
+    {
+      "id": "reactflow__edge-merge-1789500887326009-ai-agent-orchestrator-1789500927746011",
+      "data": {},
+      "type": "custom",
+      "source": "merge-1789500887326009",
+      "target": "ai-agent-orchestrator-1789500927746011"
+    }
+  ],
+  "status": "DRAFT",
+  "version": 1,
+  "isActive": false
+}

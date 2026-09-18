@@ -1,0 +1,1107 @@
+{
+  "id": "d5367bb5-515e-433b-b335-29d7dca21e77",
+  "name": "RISK_Analysis workflow",
+  "nodes": [
+    {
+      "id": "executeSubWorkflowTrigger-1788674233612006",
+      "data": {
+        "label": "Sub-workflow Trigger",
+        "inputs": {
+          "inputSource": "passthrough",
+          "jsonExample": "{\n  \"event_context\": {\n    \"supplier_id\": \"SUP-001\",\n    \"component_id\": \"COMP-045\",\n    \"delay_days\": 10,\n    \"priority\": \"CRITICAL\"\n  },\n  \"planning_context\": {\n    \"vehicle_model\": \"Electric Vehicle Model 1\",\n    \"required_quantity\": 20,\n    \"available_inventory\": 0,\n    \"inventory_shortage\": 20,\n    \"incoming_quantity\": 20,\n    \"expected_delivery_date\": \"2026-09-16\",\n    \"incoming_supply_status\": \"DELAYED\",\n    \"can_meet_required_date\": false,\n    \"required_delivery_date\": \"2026-09-13\",\n    \"production_impact\": \"HIGH\"\n  }\n}",
+          "attemptToConvertTypes": false
+        },
+        "toolId": "executeSubWorkflowTrigger",
+        "toolData": {
+          "id": "executeSubWorkflowTrigger",
+          "displayName": "Sub-workflow Trigger",
+          "category": "Input /  Output",
+          "icon": "call_received",
+          "description": "Trigger when executed by another workflow",
+          "inputSchemaJSON": {
+            "type": "object",
+            "properties": {
+              "inputSource": {
+                "type": "string",
+                "enum": [
+                  "defineUsingFields",
+                  "defineUsingJson",
+                  "passthrough"
+                ],
+                "default": "passthrough",
+                "description": "How to define the expected input data"
+              },
+              "workflowInputSchema": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "description": "Field name"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "String",
+                        "Number",
+                        "Boolean",
+                        "Object",
+                        "Array"
+                      ],
+                      "default": "String",
+                      "description": "Field data type"
+                    }
+                  },
+                  "required": [
+                    "name"
+                  ],
+                  "additionalProperties": false
+                },
+                "description": "List of input field definitions with name and type"
+              },
+              "jsonExample": {
+                "type": "string",
+                "description": "Example JSON object to infer fields and their types"
+              },
+              "attemptToConvertTypes": {
+                "type": "boolean",
+                "default": false,
+                "description": "Whether to attempt to convert values to the expected type instead of failing"
+              }
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          }
+        },
+        "isTrigger": true,
+        "isFormWait": false,
+        "executionId": "6aaa3bbdb8d768c899a90530",
+        "isTimerWait": false,
+        "isWebhookWait": false,
+        "connectedHandles": [],
+        "isPrimaryTrigger": false
+      },
+      "type": "manual-trigger",
+      "width": 220,
+      "height": 100,
+      "dragging": false,
+      "position": {
+        "x": 290.5338703180294,
+        "y": 224.1136866995766
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 290.5338703180294,
+        "y": 224.1136866995766
+      }
+    },
+    {
+      "id": "postgres.executeQuery-1788684174141001",
+      "data": {
+        "label": "Supplier Current status and History Status SQL",
+        "inputs": {
+          "query": "SELECT DISTINCT\r\n    s.supplier_id,\r\n    s.supplier_name\r\nFROM incoming_supply i\r\nJOIN suppliers s\r\n    ON s.supplier_id = i.supplier_id\r\nJOIN components c\r\n    ON c.component_id = i.component_id\r\nWHERE c.component_code = $1\r\n  AND i.supplier_id IS NOT NULL;",
+          "schema": "public",
+          "tableMode": "list",
+          "schemaMode": "list",
+          "columnsMode": "manually",
+          "idleTimeout": 0,
+          "credentialId": "bbbdb332-ae79-4355-9eaf-0f53c59954dd",
+          "queryBatching": "single",
+          "queryParameters": [
+            " {{$node[\"executeSubWorkflowTrigger-1788674233612006\"].json[\"response\"][\"context\"][\"component_code\"]}}"
+          ],
+          "outputLargeNumbersAsText": false,
+          "replaceEmptyStringsWithNull": false
+        },
+        "toolId": "postgres.executeQuery",
+        "toolData": {
+          "id": "postgres.executeQuery",
+          "displayName": "Execute Query",
+          "category": "Memory & State",
+          "provider": "postgres",
+          "operation": "executeQuery",
+          "icon": "Database",
+          "description": "Execute a raw SQL query",
+          "inputSchemaJSON": {
+            "type": "object",
+            "properties": {
+              "credentialId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "queryTimeout": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "description": "Connection timeout in seconds"
+              },
+              "idleTimeout": {
+                "type": "integer",
+                "minimum": 0,
+                "default": 0,
+                "description": "Delay closing idle connection in seconds"
+              },
+              "replaceEmptyStringsWithNull": {
+                "type": "boolean",
+                "default": false,
+                "description": "Replace empty string values with NULL"
+              },
+              "outputLargeNumbersAsText": {
+                "type": "boolean",
+                "default": false,
+                "description": "Output BIGINT/NUMERIC as text"
+              },
+              "queryBatching": {
+                "type": "string",
+                "enum": [
+                  "single",
+                  "independently",
+                  "transaction"
+                ],
+                "default": "single",
+                "description": "Query Batching"
+              },
+              "query": {
+                "type": "string",
+                "description": "SQL query to execute"
+              },
+              "queryParameters": {
+                "type": "array",
+                "default": [],
+                "description": "Parameters for prepared statements"
+              }
+            },
+            "required": [
+              "credentialId",
+              "query"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "executionMode": "batch"
+        },
+        "isTrigger": false,
+        "isFormWait": false,
+        "isTimerWait": false,
+        "isWebhookWait": false,
+        "connectedHandles": [],
+        "isPrimaryTrigger": false
+      },
+      "type": "action",
+      "width": 220,
+      "height": 94,
+      "dragging": false,
+      "position": {
+        "x": 308.2878278486674,
+        "y": 1465.9606390660288
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 308.2878278486674,
+        "y": 1465.9606390660288
+      }
+    },
+    {
+      "id": "postgres.executeQuery-1788684305997002",
+      "data": {
+        "label": "Component criticality SQL",
+        "inputs": {
+          "query": "",
+          "schema": "public",
+          "tableMode": "list",
+          "schemaMode": "list",
+          "columnsMode": "manually",
+          "idleTimeout": 0,
+          "credentialId": "bbbdb332-ae79-4355-9eaf-0f53c59954dd",
+          "queryBatching": "single",
+          "queryParameters": [
+            " {{$node[\"executeSubWorkflowTrigger-1788674233612006\"].json[\"output\"][\"context\"][\"component_id\"]}}"
+          ],
+          "outputLargeNumbersAsText": false,
+          "replaceEmptyStringsWithNull": false
+        },
+        "toolId": "postgres.executeQuery",
+        "toolData": {
+          "id": "postgres.executeQuery",
+          "displayName": "Execute Query",
+          "category": "Memory & State",
+          "provider": "postgres",
+          "operation": "executeQuery",
+          "icon": "Database",
+          "description": "Execute a raw SQL query",
+          "inputSchemaJSON": {
+            "type": "object",
+            "properties": {
+              "credentialId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "queryTimeout": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "description": "Connection timeout in seconds"
+              },
+              "idleTimeout": {
+                "type": "integer",
+                "minimum": 0,
+                "default": 0,
+                "description": "Delay closing idle connection in seconds"
+              },
+              "replaceEmptyStringsWithNull": {
+                "type": "boolean",
+                "default": false,
+                "description": "Replace empty string values with NULL"
+              },
+              "outputLargeNumbersAsText": {
+                "type": "boolean",
+                "default": false,
+                "description": "Output BIGINT/NUMERIC as text"
+              },
+              "queryBatching": {
+                "type": "string",
+                "enum": [
+                  "single",
+                  "independently",
+                  "transaction"
+                ],
+                "default": "single",
+                "description": "Query Batching"
+              },
+              "query": {
+                "type": "string",
+                "description": "SQL query to execute"
+              },
+              "queryParameters": {
+                "type": "array",
+                "default": [],
+                "description": "Parameters for prepared statements"
+              }
+            },
+            "required": [
+              "credentialId",
+              "query"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "executionMode": "batch"
+        },
+        "isTrigger": false,
+        "isFormWait": false,
+        "isTimerWait": false,
+        "isWebhookWait": false,
+        "connectedHandles": [],
+        "isPrimaryTrigger": false
+      },
+      "type": "action",
+      "width": 220,
+      "height": 94,
+      "dragging": false,
+      "position": {
+        "x": 292.23395701675264,
+        "y": 2355.9026449325993
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 292.23395701675264,
+        "y": 2355.9026449325993
+      }
+    },
+    {
+      "id": "ai-agent-orchestrator-1788684495886004",
+      "data": {
+        "label": "AI Agent",
+        "inputs": {
+          "userPrompt": "Assess the incoming procurement event using ONLY the structured evidence provided below.\r\n\r\nDo not invent missing information.\r\n\r\nThe incoming event is authoritative for event_type.\r\n\r\nDetermine:\r\n1. Whether the event is valid.\r\n2. What changed operationally.\r\n3. Whether the change is current, stale, or duplicated.\r\n4. Overall procurement risk.\r\n5. Supplier risk.\r\n6. Delivery risk.\r\n7. Capacity risk.\r\n8. Quality risk.\r\n9. Component risk.\r\n10. Whether escalation is required.\r\n11. Which downstream workflow(s) are required.\r\n12. Evidence supporting every risk assessment.\r\n13. Missing or uncertain information.\r\n\r\nFor any risk dimension where evidence is unavailable, use:\r\n\"level\": \"UNKNOWN\"\r\n\r\nand explain the missing evidence.\r\n\r\nDo not use unsupported assumptions.\r\n\r\nEVENT CONTEXT: {{$node[\"executeSubWorkflowTrigger-1788674233612006\"].json[\"items\"]}}\r\n\r\nSUPPLY / INVENTORY SQL EVIDENCE: {{$node[\"postgres.executeQuery-1789037579615001\"].json[\"items\"]}}\r\n\r Only list information as missing when it is genuinely absent from the supplied evidence.\r\n\r\nDo not list a field as missing when the supplied evidence already contains that field or an equivalent value.\r\n\r\nFor example:\r\n- available_inventory is NOT missing if inventory evidence provides it.\r\n- supplier_id is NOT missing if it is present in incoming_supply.\r\n- component_id is NOT missing if it is present in the evidence.\n\r\n",
+          "outputFormat": "json",
+          "promptSource": "define",
+          "systemPrompt": "",
+          "systemMessage": "You are the Real-Time Risk Monitoring Agent for PRISM, an automotive procurement intelligence system.\n\nYour responsibility is to perform:\n1. REAL-TIME OPERATIONAL MONITORING\n2. PROCUREMENT RISK ASSESSMENT\n3. ESCALATION IDENTIFICATION\n\nYou must use ONLY the incoming event and structured database evidence supplied in the user message.\n\nDo not invent, infer, or assume:\n- supplier identity\n- component identity\n- delivery dates\n- quantities\n- inventory values\n- supplier performance\n- capacity\n- quality\n- production impact\n- historical behavior\n- alternative suppliers\n- RFQ information\n\nIf evidence is missing, return null where appropriate and list the missing information.\n\nMONITORING\n\nDetermine:\n- whether the incoming event is valid\n- the actual event type\n- whether a current operational change is supported by the evidence\n- whether the evidence appears stale\n- whether the event appears duplicated\n- which supplier/component/supply records are affected\n\nIMPORTANT:\nThe event_type supplied by the incoming event is authoritative.\nDo not replace it with another event type.\n\nRISK ASSESSMENT\n\nAssess the following independently:\n\n1. Overall procurement risk\n2. Supplier risk\n3. Delivery risk\n4. Capacity risk\n5. Quality risk\n6. Component risk\n\nFor each risk dimension:\n- provide a risk level only when supported by evidence\n- provide the evidence supporting the assessment\n- otherwise use \"UNKNOWN\"\n- do not manufacture evidence\n\nRisk levels:\nLOW\nMEDIUM\nHIGH\nCRITICAL\nUNKNOWN\n\nSUPPLIER RISK\nAssess only from supplied supplier evidence.\n\nDELIVERY RISK\nUse incoming supply status, quantity, expected delivery date, and event evidence.\n\nCAPACITY RISK\nOnly assess when actual capacity evidence is provided.\nOtherwise return UNKNOWN.\n\nQUALITY RISK\nOnly assess when actual quality evidence is provided.\nOtherwise return UNKNOWN.\n\nCOMPONENT RISK\nUse component criticality and supplied component evidence.\n\nESCALATION\n\nDetermine whether escalation is required.\n\nPossible downstream workflows:\n- PLANNING\n- SUPPLIER_INTELLIGENCE\n- DECISION_PRESCRIPTIVE\n\nDo not use descriptive phrases such as \"Procurement Review\" as workflow identifiers.\n\nUse only:\nPLANNING\nSUPPLIER_INTELLIGENCE\nDECISION_PRESCRIPTIVE\n\nThe agent must NOT:\n- select a supplier\n- negotiate with a supplier\n- approve procurement\n- create a PO\n- make the final procurement decision\n\nReturn ONLY valid JSON.\n\nRequired output structure:\n\n{\n  \"agent\": \"REAL_TIME_RISK_MONITORING\",\n  \"status\": \"COMPLETED\",\n\n  \"monitoring\": {\n    \"event_type\": \"\",\n    \"event_valid\": true,\n    \"change_detected\": true,\n    \"current\": true,\n    \"stale\": false,\n    \"duplicate\": false,\n    \"operational_change\": \"\"\n  },\n\n  \"affected_entities\": {\n    \"supplier_id\": null,\n    \"component_id\": null,\n    \"rfq_id\": null\n  },\n\n  \"risk_assessment\": {\n    \"overall\": {\n      \"level\": \"LOW|MEDIUM|HIGH|CRITICAL|UNKNOWN\",\n      \"evidence\": []\n    },\n\n    \"supplier\": {\n      \"level\": \"LOW|MEDIUM|HIGH|CRITICAL|UNKNOWN\",\n      \"evidence\": []\n    },\n\n    \"delivery\": {\n      \"level\": \"LOW|MEDIUM|HIGH|CRITICAL|UNKNOWN\",\n      \"evidence\": []\n    },\n\n    \"capacity\": {\n      \"level\": \"LOW|MEDIUM|HIGH|CRITICAL|UNKNOWN\",\n      \"evidence\": []\n    },\n\n    \"quality\": {\n      \"level\": \"LOW|MEDIUM|HIGH|CRITICAL|UNKNOWN\",\n      \"evidence\": []\n    },\n\n    \"component\": {\n      \"level\": \"LOW|MEDIUM|HIGH|CRITICAL|UNKNOWN\",\n      \"evidence\": []\n    }\n  },\n\n  \"escalation\": {\n    \"required\": true,\n    \"required_follow_up\": [],\n    \"reason\": \"\"\n  },\n\n  \"missing_information\": []\n}",
+          "requireOutputFormat": true,
+          "showSystemMessageOption": true
+        },
+        "toolId": "ai-agent-orchestrator",
+        "toolData": {
+          "id": "ai-agent-orchestrator",
+          "displayName": "AI Agent",
+          "category": "AI / LLM",
+          "provider": "aiagent",
+          "operation": "execute",
+          "icon": "smart_toy",
+          "description": "Specialized orchestrator for multi-tool AI workflows with chat model, memory, and tools",
+          "inputSchemaJSON": {
+            "type": "object",
+            "properties": {
+              "agentName": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Name of this AI Agent node"
+              },
+              "systemPrompt": {
+                "type": "string",
+                "default": "",
+                "description": "System prompt to guide the agent behavior"
+              },
+              "llmSubNode": {
+                "type": "object",
+                "properties": {
+                  "model": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "The LLM model to use (e.g., gpt-4, claude-3-opus)"
+                  },
+                  "provider": {
+                    "type": "string",
+                    "description": "The LLM provider"
+                  },
+                  "temperature": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 2,
+                    "description": "Controls randomness/creativity (0=deterministic, 2=very creative)"
+                  },
+                  "maxTokens": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 131072,
+                    "description": "Maximum tokens for LLM response"
+                  },
+                  "topP": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "Nucleus sampling parameter"
+                  }
+                },
+                "required": [
+                  "model",
+                  "provider"
+                ],
+                "additionalProperties": false,
+                "description": "Chat Model sub-node configuration"
+              },
+              "tools": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "inputSchema": {},
+                    "nodeId": {
+                      "type": "string"
+                    },
+                    "params": {
+                      "type": "object",
+                      "additionalProperties": {}
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "description",
+                    "nodeId"
+                  ],
+                  "additionalProperties": false
+                },
+                "description": "External tools the agent can use"
+              },
+              "memory": {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string"
+                  },
+                  "config": {}
+                },
+                "required": [
+                  "type"
+                ],
+                "additionalProperties": false,
+                "description": "Conversation memory configuration"
+              },
+              "agentSkills": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "instructions": {
+                      "type": "string"
+                    },
+                    "inputVariable": {
+                      "type": "string"
+                    },
+                    "tools": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "outputType": {
+                      "type": "string"
+                    },
+                    "jsonTemplate": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "description",
+                    "instructions",
+                    "inputVariable",
+                    "outputType"
+                  ],
+                  "additionalProperties": false
+                },
+                "description": "Specialized skills for the agent"
+              },
+              "promptSource": {
+                "type": "string",
+                "enum": [
+                  "connected",
+                  "define"
+                ],
+                "default": "define",
+                "description": "Source for Prompt (User Message)."
+              },
+              "userPrompt": {
+                "type": "string",
+                "default": "",
+                "description": "Prompt entered when \"Define below\" is selected"
+              },
+              "requireOutputFormat": {
+                "type": "boolean",
+                "default": false,
+                "description": "Whether to force a specific output format (e.g. JSON)"
+              },
+              "outputFormat": {
+                "type": "string",
+                "enum": [
+                  "text",
+                  "json"
+                ],
+                "default": "text",
+                "description": "Target output format: text or json"
+              },
+              "userMessage": {
+                "type": "string",
+                "minLength": 1,
+                "description": "User input message or prompt"
+              },
+              "context": {
+                "description": "Additional context from previous workflow nodes"
+              },
+              "llmCredentials": {
+                "type": "object",
+                "properties": {
+                  "apiKey": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "apiKey"
+                ],
+                "additionalProperties": false,
+                "description": "Credentials for LLM provider"
+              },
+              "userId": {
+                "type": "string",
+                "description": "User ID for execution context"
+              },
+              "triggerData": {
+                "description": "External trigger information (e.g. chat session ID)"
+              },
+              "onToolExecute": {
+                "description": "Callback for visual feedback during tool execution"
+              },
+              "onMemoryUpdate": {
+                "description": "Callback for when memory is loaded or saved (sessionId, formattedHistory, rawHistory)"
+              }
+            },
+            "required": [
+              "agentName",
+              "llmSubNode",
+              "userMessage",
+              "llmCredentials"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "executionMode": "batch"
+        },
+        "isTrigger": false,
+        "isFormWait": false,
+        "isTimerWait": false,
+        "isWebhookWait": false,
+        "connectedHandles": [
+          "chat-model"
+        ],
+        "isPrimaryTrigger": false
+      },
+      "type": "action",
+      "width": 220,
+      "height": 94,
+      "dragging": false,
+      "position": {
+        "x": 898.0536823309427,
+        "y": 101.70071141256241
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 898.0536823309427,
+        "y": 101.70071141256241
+      }
+    },
+    {
+      "id": "openrouter-1788684549478005",
+      "data": {
+        "label": "Chat Text",
+        "inputs": {
+          "model": "meta-llama/llama-3.3-70b-instruct",
+          "prompt": "",
+          "options": {},
+          "resource": "Text",
+          "simplify": true,
+          "operation": "Chat",
+          "credentialId": "5f61e90e-0c2b-4442-baba-7498019d12f0",
+          "outputContentAsJson": false
+        },
+        "toolId": "openrouter",
+        "toolData": {
+          "id": "openrouter",
+          "displayName": "OpenRouter",
+          "type": "chat model",
+          "category": "AI / LLM",
+          "provider": "LLM Models",
+          "operation": "execute",
+          "icon": "tools/openrouter.png",
+          "description": "Access AI models from multiple providers through OpenRouter's unified API.",
+          "inputSchemaJSON": {
+            "type": "object",
+            "properties": {
+              "resource": {
+                "type": "string",
+                "enum": [
+                  "Text"
+                ],
+                "default": "Text"
+              },
+              "operation": {
+                "type": "string",
+                "enum": [
+                  "Chat"
+                ],
+                "default": "Chat"
+              },
+              "model": {
+                "type": "string",
+                "default": "google/gemma-4-26b-a4b-it"
+              },
+              "prompt": {
+                "type": "string"
+              },
+              "messages": {
+                "type": "object",
+                "properties": {
+                  "values": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "prompt": {
+                          "type": "string"
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "user",
+                            "model"
+                          ],
+                          "default": "user"
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "additionalProperties": false
+              },
+              "simplify": {
+                "type": "boolean",
+                "default": true
+              },
+              "outputContentAsJson": {
+                "type": "boolean",
+                "default": false
+              },
+              "options": {
+                "type": "object",
+                "additionalProperties": {}
+              },
+              "credentialId": {
+                "type": "string"
+              },
+              "credentials": {}
+            },
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "fields": [
+            {
+              "displayName": "Resource",
+              "name": "resource",
+              "type": "options",
+              "noDataExpression": true,
+              "options": [
+                {
+                  "name": "Text",
+                  "value": "Text"
+                }
+              ],
+              "default": "Text"
+            },
+            {
+              "displayName": "Operation",
+              "name": "operation",
+              "type": "options",
+              "noDataExpression": true,
+              "displayOptions": {
+                "show": {
+                  "resource": [
+                    "Text"
+                  ]
+                }
+              },
+              "options": [
+                {
+                  "name": "Chat",
+                  "value": "Chat"
+                }
+              ],
+              "default": "Chat"
+            },
+            {
+              "displayName": "Model",
+              "name": "model",
+              "type": "options",
+              "fetchEndpoint": "/api/tools/openrouter/list-models",
+              "dependsOn": [
+                "credentials"
+              ],
+              "labelKey": "name",
+              "valueKey": "id",
+              "default": "google/gemma-4-26b-a4b-it",
+              "description": "Select the OpenRouter model to use. Models marked with :free have no cost."
+            },
+            {
+              "displayName": "Prompt (User Message)",
+              "name": "prompt",
+              "type": "string",
+              "format": "text",
+              "typeOptions": {
+                "rows": 4
+              },
+              "default": "",
+              "placeholder": "e.g. What can you do?",
+              "displayOptions": {
+                "show": {
+                  "resource": [
+                    "Text"
+                  ],
+                  "operation": [
+                    "Chat"
+                  ]
+                }
+              }
+            },
+            {
+              "displayName": "Simplify Output",
+              "name": "simplify",
+              "type": "boolean",
+              "default": true,
+              "displayOptions": {
+                "show": {
+                  "resource": [
+                    "Text"
+                  ]
+                }
+              }
+            },
+            {
+              "displayName": "Output Content as JSON",
+              "name": "outputContentAsJson",
+              "type": "boolean",
+              "default": false,
+              "displayOptions": {
+                "show": {
+                  "resource": [
+                    "Text"
+                  ],
+                  "operation": [
+                    "Chat"
+                  ]
+                }
+              }
+            },
+            {
+              "displayName": "Options",
+              "name": "options",
+              "type": "collection",
+              "displayOptions": {
+                "show": {
+                  "/operation": [
+                    "Chat"
+                  ]
+                }
+              },
+              "placeholder": "Add Option",
+              "default": {},
+              "fields": [
+                {
+                  "name": "systemMessage",
+                  "displayName": "System Message",
+                  "type": "string",
+                  "format": "text",
+                  "default": "",
+                  "typeOptions": {
+                    "rows": 3
+                  },
+                  "displayOptions": {
+                    "show": {
+                      "/operation": [
+                        "Chat"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "maxTokens",
+                  "displayName": "Maximum Number of Tokens",
+                  "type": "number",
+                  "default": 1024,
+                  "displayOptions": {
+                    "show": {
+                      "/operation": [
+                        "Chat"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "temperature",
+                  "displayName": "Output Randomness (Temperature)",
+                  "type": "number",
+                  "default": 0.7,
+                  "displayOptions": {
+                    "show": {
+                      "/operation": [
+                        "Chat"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "topP",
+                  "displayName": "Output Randomness (Top P)",
+                  "type": "number",
+                  "default": 0.95,
+                  "displayOptions": {
+                    "show": {
+                      "/operation": [
+                        "Chat"
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          ],
+          "initialData": {
+            "resource": "Text",
+            "operation": "Chat",
+            "model": "google/gemma-4-26b-a4b-it",
+            "prompt": "",
+            "simplify": true,
+            "outputContentAsJson": false,
+            "credentialId": "",
+            "options": {}
+          }
+        },
+        "isSubNode": true,
+        "isFormWait": false,
+        "executionId": "6aaa3bbdb8d768c899a90530",
+        "isTimerWait": false,
+        "isWebhookWait": false,
+        "connectedHandles": []
+      },
+      "type": "action",
+      "width": 80,
+      "height": 75,
+      "dragging": false,
+      "position": {
+        "x": 1039.3092326013978,
+        "y": 324.9222513133511
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 1039.3092326013978,
+        "y": 324.9222513133511
+      }
+    },
+    {
+      "id": "postgres.executeQuery-1789037579615001",
+      "data": {
+        "label": "Supply/Inventory SQL",
+        "inputs": {
+          "query": "SELECT\r\n    c.component_id,\r\n    c.component_code,\r\n    c.component_name,\r\n    c.criticality_profile,\r\n\r\n    -- Current inventory\r\n    COALESCE(inv.physical_stock, 0) AS physical_stock,\r\n    COALESCE(inv.reserved_stock, 0) AS reserved_stock,\r\n    COALESCE(inv.blocked_stock, 0) AS blocked_stock,\r\n    COALESCE(inv.safety_stock, 0) AS safety_stock,\r\n\r\n    (\r\n        COALESCE(inv.physical_stock, 0)\r\n        - COALESCE(inv.reserved_stock, 0)\r\n        - COALESCE(inv.safety_stock, 0)\r\n        - COALESCE(inv.blocked_stock, 0)\r\n    ) AS available_inventory,\r\n\r\n    inv.last_updated_at AS inventory_last_updated,\r\n\r\n    -- Incoming supply\r\n    COALESCE(supply.total_incoming_quantity, 0) AS total_incoming_quantity,\r\n    supply.next_expected_delivery_date,\r\n    supply.incoming_supply\r\n\r\nFROM components c\r\n\r\nLEFT JOIN LATERAL (\r\n    SELECT\r\n        SUM(i.physical_stock) AS physical_stock,\r\n        SUM(i.reserved_stock) AS reserved_stock,\r\n        SUM(i.blocked_stock) AS blocked_stock,\r\n        SUM(i.safety_stock) AS safety_stock,\r\n        MAX(i.last_updated_at) AS last_updated_at\r\n    FROM inventory i\r\n    WHERE i.component_id = c.component_id\r\n) inv ON true\r\n\r\nLEFT JOIN LATERAL (\r\n    SELECT\r\n        SUM(s.quantity) AS total_incoming_quantity,\r\n        MIN(s.expected_delivery_date) AS next_expected_delivery_date,\r\n\r\n        jsonb_agg(\r\n            jsonb_build_object(\r\n                'incoming_supply_id', s.incoming_supply_id,\r\n                'supplier_id', s.supplier_id,\r\n                'quantity', s.quantity,\r\n                'expected_delivery_date', s.expected_delivery_date,\r\n                'status', s.status,\r\n                'purchase_order_number', s.purchase_order_number\r\n            )\r\n            ORDER BY s.expected_delivery_date\r\n        ) AS incoming_supply\r\n\r\n    FROM incoming_supply s\r\n    WHERE s.component_id = c.component_id\r\n) supply ON true\r\n\r\nWHERE c.component_code = '{{$json.event_context.context.component_code}}';",
+          "schema": "public",
+          "tableMode": "list",
+          "schemaMode": "list",
+          "columnsMode": "manually",
+          "idleTimeout": 0,
+          "credentialId": "bbbdb332-ae79-4355-9eaf-0f53c59954dd",
+          "queryBatching": "single",
+          "queryParameters": [],
+          "outputLargeNumbersAsText": false,
+          "replaceEmptyStringsWithNull": false
+        },
+        "toolId": "postgres.executeQuery",
+        "toolData": {
+          "id": "postgres.executeQuery",
+          "displayName": "Execute Query",
+          "category": "Memory & State",
+          "provider": "postgres",
+          "operation": "executeQuery",
+          "icon": "Database",
+          "description": "Execute a raw SQL query",
+          "inputSchemaJSON": {
+            "type": "object",
+            "properties": {
+              "credentialId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "queryTimeout": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "description": "Connection timeout in seconds"
+              },
+              "idleTimeout": {
+                "type": "integer",
+                "minimum": 0,
+                "default": 0,
+                "description": "Delay closing idle connection in seconds"
+              },
+              "replaceEmptyStringsWithNull": {
+                "type": "boolean",
+                "default": false,
+                "description": "Replace empty string values with NULL"
+              },
+              "outputLargeNumbersAsText": {
+                "type": "boolean",
+                "default": false,
+                "description": "Output BIGINT/NUMERIC as text"
+              },
+              "queryBatching": {
+                "type": "string",
+                "enum": [
+                  "single",
+                  "independently",
+                  "transaction"
+                ],
+                "default": "single",
+                "description": "Query Batching"
+              },
+              "query": {
+                "type": "string",
+                "description": "SQL query to execute"
+              },
+              "queryParameters": {
+                "type": "array",
+                "default": [],
+                "description": "Parameters for prepared statements"
+              }
+            },
+            "required": [
+              "credentialId",
+              "query"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "executionMode": "batch"
+        },
+        "isTrigger": false,
+        "isFormWait": false,
+        "executionId": "6aaa3bbdb8d768c899a90530",
+        "isTimerWait": false,
+        "isWebhookWait": false,
+        "connectedHandles": [],
+        "isPrimaryTrigger": false
+      },
+      "type": "action",
+      "width": 220,
+      "height": 94,
+      "dragging": false,
+      "position": {
+        "x": 585.4120934606995,
+        "y": 96.22179419171584
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 585.4120934606995,
+        "y": 96.22179419171584
+      }
+    },
+    {
+      "id": "postgres.executeQuery-1789538061709001",
+      "data": {
+        "label": "Supplier History SQL",
+        "inputs": {
+          "query": "SELECT\r\n    ssh.supplier_id,\r\n    ssh.status_timestamp,\r\n    ssh.operational_status,\r\n    ssh.delivery_status\r\nFROM supplier_status_history ssh\r\nWHERE ssh.supplier_id IN (\r\n    SELECT DISTINCT s.supplier_id\r\n    FROM incoming_supply s\r\n    JOIN components c\r\n        ON c.component_id = s.component_id\r\n    WHERE c.component_code = '{{$json.event_context.context.component_code}}'\r\n      AND s.supplier_id IS NOT NULL\r\n)\r\nORDER BY ssh.status_timestamp DESC\r\nLIMIT 20;",
+          "schema": "public",
+          "tableMode": "list",
+          "schemaMode": "list",
+          "columnsMode": "manually",
+          "idleTimeout": 0,
+          "credentialId": "bbbdb332-ae79-4355-9eaf-0f53c59954dd",
+          "queryBatching": "single",
+          "queryParameters": [
+            ""
+          ],
+          "outputLargeNumbersAsText": false,
+          "replaceEmptyStringsWithNull": false
+        },
+        "toolId": "postgres.executeQuery",
+        "toolData": {
+          "id": "postgres.executeQuery",
+          "displayName": "Execute Query",
+          "category": "Memory & State",
+          "provider": "postgres",
+          "operation": "executeQuery",
+          "icon": "Database",
+          "description": "Execute a raw SQL query",
+          "inputSchemaJSON": {
+            "type": "object",
+            "properties": {
+              "credentialId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "queryTimeout": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "description": "Connection timeout in seconds"
+              },
+              "idleTimeout": {
+                "type": "integer",
+                "minimum": 0,
+                "default": 0,
+                "description": "Delay closing idle connection in seconds"
+              },
+              "replaceEmptyStringsWithNull": {
+                "type": "boolean",
+                "default": false,
+                "description": "Replace empty string values with NULL"
+              },
+              "outputLargeNumbersAsText": {
+                "type": "boolean",
+                "default": false,
+                "description": "Output BIGINT/NUMERIC as text"
+              },
+              "queryBatching": {
+                "type": "string",
+                "enum": [
+                  "single",
+                  "independently",
+                  "transaction"
+                ],
+                "default": "single",
+                "description": "Query Batching"
+              },
+              "query": {
+                "type": "string",
+                "description": "SQL query to execute"
+              },
+              "queryParameters": {
+                "type": "array",
+                "default": [],
+                "description": "Parameters for prepared statements"
+              }
+            },
+            "required": [
+              "credentialId",
+              "query"
+            ],
+            "additionalProperties": false,
+            "$schema": "http://json-schema.org/draft-07/schema#"
+          },
+          "executionMode": "batch"
+        },
+        "isTrigger": false,
+        "isFormWait": false,
+        "isTimerWait": false,
+        "isWebhookWait": false,
+        "connectedHandles": [],
+        "isPrimaryTrigger": false
+      },
+      "type": "action",
+      "width": 220,
+      "height": 94,
+      "dragging": false,
+      "position": {
+        "x": 665.2116824306244,
+        "y": 1614.557728186736
+      },
+      "selected": false,
+      "positionAbsolute": {
+        "x": 665.2116824306244,
+        "y": 1614.557728186736
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-openrouter-1788684549478005-ai-agent-orchestrator-1788684495886004-chat-model",
+      "data": {},
+      "type": "custom",
+      "source": "openrouter-1788684549478005",
+      "target": "ai-agent-orchestrator-1788684495886004",
+      "sourceHandle": "subnode-out",
+      "targetHandle": "chat-model"
+    },
+    {
+      "id": "reactflow__edge-executeSubWorkflowTrigger-1788674233612006-postgres.executeQuery-1789037579615001",
+      "data": {},
+      "type": "custom",
+      "source": "executeSubWorkflowTrigger-1788674233612006",
+      "target": "postgres.executeQuery-1789037579615001",
+      "selected": false
+    },
+    {
+      "id": "reactflow__edge-postgres.executeQuery-1789037579615001-ai-agent-orchestrator-1788684495886004",
+      "data": {},
+      "type": "custom",
+      "source": "postgres.executeQuery-1789037579615001",
+      "target": "ai-agent-orchestrator-1788684495886004"
+    }
+  ],
+  "status": "DRAFT",
+  "version": 1,
+  "isActive": false
+}

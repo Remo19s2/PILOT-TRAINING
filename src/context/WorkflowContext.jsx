@@ -571,11 +571,11 @@ const initialNegotiations = [
     originalPrice: 95,
     revisedPrice: 95,
     targetPrice: 92,
-    currentOffer: 93,
+    currentOffer: 95,
     deliveryRequirement: 14,
     paymentTerms: 'Net 30',
-    status: 'counter_offer_received',
-    lastUpdated: '2024-09-12 11:45',
+    status: 'negotiation_active',
+    lastUpdated: '2024-09-11 16:45',
     negotiationHistory: [
       {
         id: 'NH-005',
@@ -592,27 +592,11 @@ const initialNegotiations = [
         message: 'Initial quotation submitted',
         price: 95,
         timestamp: '2024-09-11 16:45'
-      },
-      {
-        id: 'NH-007',
-        participant: 'procurement',
-        action: 'offer_sent',
-        message: 'Proposed target price of ₹92/unit',
-        price: 92,
-        timestamp: '2024-09-12 09:00'
-      },
-      {
-        id: 'NH-008',
-        participant: 'supplier',
-        action: 'counter_offer',
-        message: 'We can accept ₹93/unit with 14-day delivery',
-        price: 93,
-        timestamp: '2024-09-12 11:45'
       }
     ],
-    supplierResponse: 'counter_offer',
-    responseDate: '2024-09-12 11:45',
-    supplierMessage: 'We can accept ₹93/unit with 14-day delivery. This is our best offer.',
+    supplierResponse: null,
+    responseDate: null,
+    supplierMessage: null,
     dealStatus: 'under_negotiation'
   },
   {

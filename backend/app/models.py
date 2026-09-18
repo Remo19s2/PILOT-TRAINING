@@ -233,7 +233,7 @@ class VehicleModel(Base):
 
 class PlanningRequirement(Base):
     __tablename__ = "planning_requirements"
-    id: Mapped[UUID] = mapped_column(UUID_TYPE, primary_key=True, default=uuid4)
+    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: str(uuid4()))
     component_name: Mapped[str] = mapped_column(String(200), nullable=False)
     required_quantity: Mapped[int] = mapped_column(Integer, nullable=False)
     current_inventory: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

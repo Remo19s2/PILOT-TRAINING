@@ -27,7 +27,24 @@ settings = get_settings()
 logger = logging.getLogger("prism.api")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 app = FastAPI(title="Mycelia Procurement Intelligence API", version="1.0.0")
-app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origin_list, allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+
+if settings.is_production:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origin_list,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origin_list,
+        allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 
 @app.middleware("http")
@@ -242,7 +259,7 @@ def requirements(db: DbSession, user: User = Depends(require_roles("PROCUREMENT_
 
 
 @app.get("/api/planning/requirements/{requirement_id}", response_model=None)
-def requirement(requirement_id: UUID, db: DbSession, user: User = Depends(require_roles("PROCUREMENT_MANAGER"))) -> PlanningRequirement:
+def requirement(requirement_id: str, db: DbSession, user: User = Depends(require_roles("PROCUREMENT_MANAGER"))) -> PlanningRequirement:
     result = db.get(PlanningRequirement, requirement_id)
     if not result:
         raise HTTPException(status_code=404, detail="Planning requirement not found")

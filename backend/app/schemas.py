@@ -157,7 +157,7 @@ EventType = Literal[
 class EventSource(BaseModel):
     user_id: UUID | None = None
     rfq_id: UUID | None = None
-    component_id: UUID | None = None
+    component_id: UUID | str | None = None
     supplier_id: UUID | None = None
 
 

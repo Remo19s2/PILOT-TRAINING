@@ -97,18 +97,41 @@ export const triggerSupplierDelay = ({ supplier_id, component_id, rfq_id, delay_
   })
 
 /**
- * 5. Inventory Shortage
- * Manual/system detection.
+ * 5. Inventory Shortage & Planning Analysis
  * Details: component_id, current_inventory, required_quantity, shortage_quantity, required_date
  */
-export const triggerInventoryShortage = ({ component_id, current_inventory, required_quantity, shortage_quantity, required_date, priority = 'CRITICAL' }) =>
+export const triggerInventoryShortage = ({ component_id, component_name, current_inventory, required_quantity, shortage_quantity, required_date, priority = 'CRITICAL' }) =>
   fireMonitoringEvent('INVENTORY_SHORTAGE', priority, { component_id }, {
     component_id,
+    component_name,
     current_inventory,
     required_quantity,
     shortage_quantity,
     required_date,
   })
+
+export const triggerInventoryPlanningAnalysis = ({ items = [], priority = 'CRITICAL' }) => {
+  const primaryItem = items[0] || {}
+  return fireMonitoringEvent('INVENTORY_SHORTAGE', priority, { component_id: primaryItem.component_id || primaryItem.id }, {
+    component_id: primaryItem.component_id || primaryItem.id,
+    component_name: primaryItem.component_name || primaryItem.componentName,
+    current_inventory: primaryItem.current_inventory || primaryItem.currentInventory,
+    required_quantity: primaryItem.required_quantity || primaryItem.requiredQuantity,
+    shortage_quantity: primaryItem.shortage_quantity || primaryItem.shortageQuantity,
+    required_date: primaryItem.required_date || primaryItem.requiredDeliveryDate,
+    total_shortage_items: items.length,
+    shortages: items.map(it => ({
+      component_id: it.component_id || it.id,
+      component_name: it.component_name || it.componentName,
+      shortage_quantity: it.shortage_quantity || it.shortageQuantity,
+      required_quantity: it.required_quantity || it.requiredQuantity,
+      current_inventory: it.current_inventory || it.currentInventory,
+      required_date: it.required_date || it.requiredDeliveryDate,
+      priority: it.priority,
+    })),
+    analysis_scope: 'batch_inventory_analysis',
+  })
+}
 
 /**
  * 6. Alternative Supplier Request
